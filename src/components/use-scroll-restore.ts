@@ -7,7 +7,9 @@ interface Options {
   storyId: number;
   scrollRef: React.RefObject<HTMLElement | null>;
   onMarkRead?: () => void;
-  onToast?: (msg: string) => void;
+  /** 진행 중 회차로 진입 시 마지막 위치(%) 알림. 사용자가 dismiss/처음부터
+   *  선택할 수 있는 prompt 를 띄우는 데 사용. */
+  onResumeFromPercent?: (percent: number) => void;
   isRead?: boolean;
   readThreshold?: number;
 }
@@ -35,7 +37,7 @@ export function useScrollRestore({
   storyId,
   scrollRef,
   onMarkRead,
-  onToast,
+  onResumeFromPercent,
   isRead,
   readThreshold = 0.8,
 }: Options): Result {
@@ -68,7 +70,7 @@ export function useScrollRestore({
           if (el)
             el.scrollTop = progress * (el.scrollHeight - el.clientHeight);
         });
-        onToast?.("이어서 읽는 중");
+        onResumeFromPercent?.(Math.round(progress * 100));
       } else {
         scrollRef.current?.scrollTo(0, 0);
       }
@@ -76,7 +78,7 @@ export function useScrollRestore({
     return () => {
       cancelled = true;
     };
-  }, [storyId, scrollRef, onToast]);
+  }, [storyId, scrollRef, onResumeFromPercent]);
 
   useEffect(() => {
     const capturedId = storyId;

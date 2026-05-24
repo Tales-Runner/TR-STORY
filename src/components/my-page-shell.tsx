@@ -161,7 +161,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
 
   return (
     <div className="mx-auto w-full max-w-[900px] px-4 pb-24 pt-6">
-      <header className="mb-6">
+      <header className="mb-8">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
@@ -171,50 +171,39 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         <h1 className="mt-3 text-2xl font-bold text-[var(--color-text)]">
           마이페이지
         </h1>
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-soft)]">
+          <span>
+            읽음{" "}
+            <span className="font-semibold text-[var(--color-brand-strong)]">
+              {totalRead}
+            </span>
+            <span className="text-[var(--color-text-muted)]">
+              {stories.length
+                ? ` (${Math.round((totalRead / stories.length) * 100)}%)`
+                : ""}
+            </span>
+          </span>
+          <span>
+            책갈피{" "}
+            <span className="font-semibold text-[var(--color-brand-strong)]">
+              {totalBookmark}
+            </span>
+          </span>
+          <span>
+            즐겨찾기{" "}
+            <span className="font-semibold text-amber-500">
+              {totalFavorite}
+            </span>
+          </span>
+        </p>
         <p
           className="mt-1 text-[11px] text-[var(--color-text-muted)]"
           title={dataMeta.updatedAt}
         >
-          사이트 데이터:{" "}
-          <span className="text-[var(--color-text-soft)]">
-            {formatISODate(dataMeta.updatedAt)}
-          </span>{" "}
-          ({relativeDays(dataMeta.updatedAt)}) · {dataMeta.totalCount}편
+          사이트 데이터 {formatISODate(dataMeta.updatedAt)} (
+          {relativeDays(dataMeta.updatedAt)}) · 전체 {dataMeta.totalCount}편
         </p>
       </header>
-
-      {/* 통계 */}
-      <section className="mb-8 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <StatCard
-          label="전체"
-          value={stories.length}
-          unit="편"
-          tone="muted"
-        />
-        <StatCard
-          label="읽음"
-          value={totalRead}
-          unit="편"
-          sub={
-            stories.length
-              ? `${Math.round((totalRead / stories.length) * 100)}%`
-              : undefined
-          }
-          tone="brand"
-        />
-        <StatCard
-          label="책갈피"
-          value={totalBookmark}
-          unit="편"
-          tone="brand"
-        />
-        <StatCard
-          label="즐겨찾기"
-          value={totalFavorite}
-          unit="편"
-          tone="amber"
-        />
-      </section>
 
       {!ready ? (
         <p className="text-center text-sm text-[var(--color-text-muted)] py-12">
@@ -356,43 +345,6 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           개인정보 처리 안내
         </Link>
       </footer>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  unit,
-  sub,
-  tone,
-}: {
-  label: string;
-  value: number;
-  unit: string;
-  sub?: string;
-  tone: "muted" | "brand" | "amber";
-}) {
-  const toneClass =
-    tone === "brand"
-      ? "text-[var(--color-brand-strong)]"
-      : tone === "amber"
-        ? "text-amber-500"
-        : "text-[var(--color-text)]";
-  return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3">
-      <div className="text-[11px] text-[var(--color-text-muted)]">
-        {label}
-      </div>
-      <div className="mt-0.5 flex items-baseline gap-1">
-        <span className={`text-xl font-bold ${toneClass}`}>{value}</span>
-        <span className="text-xs text-[var(--color-text-soft)]">{unit}</span>
-        {sub && (
-          <span className="ml-auto text-[11px] text-[var(--color-text-muted)]">
-            {sub}
-          </span>
-        )}
-      </div>
     </div>
   );
 }

@@ -311,10 +311,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </span>
             <span className="text-base">테런 스토리</span>
           </Link>
+          <span className="ml-auto text-[11px] text-[var(--color-text-muted)]">
+            {stories.length}편
+          </span>
           <Link
             href="/me/"
             title="내 책갈피 · 읽은 회차 모아보기"
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
@@ -327,47 +330,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </svg>
             마이페이지
           </Link>
-          <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
-            <span title="전체 회차">{stories.length}편</span>
-            {ready && readIds.size > 0 && (
-              <span
-                className="flex items-center gap-0.5 text-[var(--color-text-soft)]"
-                title="자동 읽음 기록 (80% 이상 스크롤)"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M2 6h20M2 12h20M2 18h12"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                {readIds.size}
-              </span>
-            )}
-            {ready && bookmarkIds.size > 0 && (
-              <span
-                className="flex items-center gap-0.5 text-[var(--color-brand-strong)]"
-                title="책갈피"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z" />
-                </svg>
-                {bookmarkIds.size}
-              </span>
-            )}
-            {ready && favoriteIds.size > 0 && (
-              <span
-                className="flex items-center gap-0.5 text-amber-500"
-                title="즐겨찾기"
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                {favoriteIds.size}
-              </span>
-            )}
-          </div>
         </div>
 
         {/* Search */}

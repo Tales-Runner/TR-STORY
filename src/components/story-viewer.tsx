@@ -136,12 +136,26 @@ export function StoryViewer({
     };
   }, []);
 
+  const [resumePercent, setResumePercent] = useState<number | null>(null);
+
+  // story.id 가 바뀌면 옛 resume prompt 도 초기화. useScrollRestore 가
+  // 새 회차에서 진행률이 있다면 다시 onResumeFromPercent 호출함.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setResumePercent(null);
+  }, [story.id]);
+
+  const handleResumeReset = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    setResumePercent(null);
+  }, []);
+
   const { scrollProgress, handleScroll: restoreHandleScroll } =
     useScrollRestore({
       storyId: story.id,
       scrollRef,
       onMarkRead: handleMarkRead,
-      onToast: showToast,
+      onResumeFromPercent: setResumePercent,
       isRead,
     });
 
@@ -513,6 +527,51 @@ export function StoryViewer({
         <div className="fixed top-16 left-0 right-0 z-[80] flex justify-center pointer-events-none">
           <div className="rounded-lg border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-4 py-2 text-sm text-white/85 shadow-lg animate-fade-in">
             {viewerToast}
+          </div>
+        </div>
+      )}
+
+      {resumePercent !== null && (
+        <div className="fixed top-16 left-0 right-0 z-[75] flex justify-center px-4 pointer-events-none">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 text-sm text-white/85 shadow-lg animate-fade-in">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              className="text-[var(--color-brand-soft)]"
+            >
+              <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M12 7v5l3 2"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span>
+              {resumePercent}% 지점부터 이어 보는 중
+            </span>
+            <button
+              onClick={handleResumeReset}
+              className="rounded-md bg-white/10 px-2 py-1 text-xs text-white/85 hover:bg-white/20"
+            >
+              처음부터
+            </button>
+            <button
+              onClick={() => setResumePercent(null)}
+              aria-label="알림 닫기"
+              className="rounded-md p-1 text-white/55 hover:text-white/85 hover:bg-white/10"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M3 3l10 10M13 3L3 13"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
           </div>
         </div>
       )}
