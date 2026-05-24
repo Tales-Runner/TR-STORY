@@ -108,3 +108,21 @@ push 가 곧 배포 트리거이므로 별도 작업 없이 사이트에 반영�
 - 본 프로젝트는 **비공식 미러** 이며, 모든 콘텐츠 권리는 RHAON
   Entertainment 및 Blomics 에 있다.
 - 공식 페이지 바로가기: <https://tr.game.onstove.com/archive/trstory>
+- 원본 권리자가 콘텐츠 제거를 요청하시는 경우 본 저장소 issue 로 알려
+  주시면 신속히 제거한다.
+
+## 개인정보 / 데이터 처리
+사이트 사용자에게는 다음을 고지한다 (전체 안내문은 `/privacy` 페이지).
+- **사용자 계정 없음** — 로그인 / 회원가입 기능이 존재하지 않는다.
+- **분석 · 광고 · 쿠키 없음** — Google Analytics, Vercel Analytics 등
+  어떠한 분석 스크립트도 삽입되어 있지 않다. 사이트가 직접 쿠키를
+  설정하지 않는다.
+- **서버 측 로그 없음** — GitHub Pages 정적 파일만 서빙되며 별도
+  application 서버가 없다.
+- **모든 사용자 기록 (읽음 · 즐겨찾기 · 진행률) 은 사용자 본인의 브라우저
+  IndexedDB 와 localStorage 에만 저장**되며 외부로 전송되지 않는다.
+  운영자도 이를 조회할 수 없다.
+- **제3자 fetch**: trimage.rhaon.co.kr (이미지), cdn.jsdelivr.net (폰트),
+  tr.game.onstove.com (공식 댓글 외부 링크) 도메인으로 브라우저가 직접
+  요청을 보낸다. 일반적인 HTTP 헤더(IP, User-Agent) 가 해당 제3자
+  서버에 도달할 수 있으며 그 부분은 각 서비스 정책을 따른다.

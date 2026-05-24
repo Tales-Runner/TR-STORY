@@ -503,8 +503,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <div className="flex-1">
-            카드 우측의 <span className="font-bold">✓ 체크</span>로 읽음 표시,{" "}
-            <span className="font-bold">★ 별</span>로 즐겨찾기. 진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능.
+            카드 우측의 <span className="font-bold">✓ 체크</span>로 읽음
+            표시, <span className="font-bold">★ 별</span>로 즐겨찾기. 진행률은
+            자동 저장돼서 다시 들어가도 이어 읽기 가능. 모든 기록은{" "}
+            <Link href="/privacy" className="underline">
+              본인의 브라우저에만 저장
+            </Link>{" "}
+            됩니다.
           </div>
           <button
             onClick={dismissOnboarding}
@@ -611,20 +616,31 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </section>
           ))
         )}
-        <p className="mt-12 mb-6 px-2 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-          데이터 출처:{" "}
-          <a
-            href="https://tr.game.onstove.com/archive/trstory"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            테일즈런너 공식 라이브러리
-          </a>
-          .<br />
-          본 사이트는 모바일 가독성을 위한 비공식 미러로, 모든 콘텐츠 권리는
-          RHAON Entertainment 및 Blomics 에 있습니다.
-        </p>
+        <div className="mt-12 mb-6 px-2 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed space-y-2">
+          <p>
+            데이터 출처:{" "}
+            <a
+              href="https://tr.game.onstove.com/archive/trstory"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              테일즈런너 공식 라이브러리
+            </a>
+            .<br />
+            본 사이트는 모바일 가독성을 위한 비공식 미러로, 모든 콘텐츠
+            권리는 RHAON Entertainment 및 Blomics 에 있습니다.
+          </p>
+          <p>
+            <Link
+              href="/privacy"
+              className="underline text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
+            >
+              개인정보 처리 안내
+            </Link>{" "}
+            · 사용자 데이터는 브라우저에만 저장되며 외부로 전송되지 않음.
+          </p>
+        </div>
       </main>
     </div>
   );
