@@ -6,6 +6,31 @@ export function formatDate(yyyymmdd: string): string {
   return `${y}.${m}.${d}`;
 }
 
+export function daysAgo(iso: string): number {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) return 0;
+  return Math.floor((Date.now() - t) / 86400000);
+}
+
+/** "오늘" / "3일 전" / "2달 전" 표기. iso 가 미래면 "오늘". */
+export function relativeDays(iso: string): string {
+  const d = daysAgo(iso);
+  if (d <= 0) return "오늘";
+  if (d < 30) return `${d}일 전`;
+  if (d < 365) return `${Math.floor(d / 30)}달 전`;
+  return `${Math.floor(d / 365)}년 전`;
+}
+
+/** "2026-05-25" 형식. */
+export function formatISODate(iso: string): string {
+  const t = new Date(iso);
+  if (!Number.isFinite(t.getTime())) return iso;
+  const y = t.getFullYear();
+  const m = String(t.getMonth() + 1).padStart(2, "0");
+  const d = String(t.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function parseHashTags(s: string): string[] {
   return s
     .split(",")

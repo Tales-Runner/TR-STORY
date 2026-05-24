@@ -2,7 +2,14 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { formatDate, parseHashTags } from "@/lib/format";
+import { dataMeta } from "@/lib/api";
+import {
+  formatDate,
+  formatISODate,
+  daysAgo,
+  relativeDays,
+  parseHashTags,
+} from "@/lib/format";
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
@@ -529,6 +536,27 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
       </header>
 
+      {daysAgo(dataMeta.updatedAt) >= 30 && (
+        <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[12px] leading-snug text-amber-800">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
+            <path d="M12 2L2 22h20L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
+            <path d="M12 9v6M12 17.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <div className="flex-1">
+            데이터가 {relativeDays(dataMeta.updatedAt)} 기준입니다. 그동안
+            새로 올라온 회차는 빠져 있을 수 있어요.{" "}
+            <a
+              href="https://tr.game.onstove.com/archive/trstory"
+              target="_blank"
+              rel="noreferrer"
+              className="underline font-semibold"
+            >
+              공식 페이지에서 확인 →
+            </a>
+          </div>
+        </div>
+      )}
+
       {showOnboarding && (
         <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-[12px] leading-snug text-[var(--color-brand-strong)]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
@@ -658,6 +686,28 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           ))
         )}
         <div className="mt-12 mb-6 px-2 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed space-y-2">
+          <p>
+            <span title={dataMeta.updatedAt}>
+              마지막 데이터 갱신:{" "}
+              <span className="font-semibold text-[var(--color-text-soft)]">
+                {formatISODate(dataMeta.updatedAt)}
+              </span>{" "}
+              ({relativeDays(dataMeta.updatedAt)})
+            </span>
+            {daysAgo(dataMeta.updatedAt) >= 30 && (
+              <>
+                {" · "}
+                <a
+                  href="https://tr.game.onstove.com/archive/trstory"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline text-amber-600"
+                >
+                  공식 페이지에서 최신 회차 확인 →
+                </a>
+              </>
+            )}
+          </p>
           <p>
             데이터 출처:{" "}
             <a

@@ -2,7 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { formatDate, parseHashTags } from "@/lib/format";
+import { dataMeta } from "@/lib/api";
+import { formatDate, formatISODate, relativeDays, parseHashTags } from "@/lib/format";
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
@@ -172,6 +173,16 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         </h1>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
           내 책갈피·즐겨찾기·읽은 회차. 모든 기록은 본인 브라우저에만 저장됨.
+        </p>
+        <p
+          className="mt-1 text-[11px] text-[var(--color-text-muted)]"
+          title={dataMeta.updatedAt}
+        >
+          사이트 데이터:{" "}
+          <span className="text-[var(--color-text-soft)]">
+            {formatISODate(dataMeta.updatedAt)}
+          </span>{" "}
+          ({relativeDays(dataMeta.updatedAt)}) · {dataMeta.totalCount}편
         </p>
       </header>
 

@@ -1,7 +1,18 @@
 import storiesJson from "@/data/stories.json";
+import metaJson from "@/data/data-meta.json";
 import type { StoryDetail, StoryListItem } from "./types";
 
 const stories = storiesJson as StoryDetail[];
+
+export interface DataMeta {
+  /** ISO8601 timestamp of last fetch-data run. */
+  updatedAt: string;
+  totalCount: number;
+  /** YYYYMMDD of newest story in the snapshot. */
+  latestOpenDt: string | null;
+}
+
+export const dataMeta = metaJson as DataMeta;
 
 export function fetchStoryList(): Promise<StoryListItem[]> {
   return Promise.resolve(

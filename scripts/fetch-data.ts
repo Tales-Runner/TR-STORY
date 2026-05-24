@@ -167,6 +167,21 @@ async function main() {
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, JSON.stringify(out, null, 2));
   console.log(`✅ Wrote ${out.length} stories → ${outPath}`);
+
+  // 데이터 갱신 시각 / 총 편수 메타. 사이트가 이걸 읽어 푸터에 노출하므로
+  // 사용자가 수동 갱신 흐름이 중단됐는지 한 눈에 확인 가능.
+  const metaPath = join(root, "src", "data", "data-meta.json");
+  const latestOpenDt = out
+    .map((s) => s.openDt)
+    .sort()
+    .reverse()[0];
+  const meta = {
+    updatedAt: new Date().toISOString(),
+    totalCount: out.length,
+    latestOpenDt: latestOpenDt ?? null,
+  };
+  writeFileSync(metaPath, JSON.stringify(meta, null, 2) + "\n");
+  console.log(`✅ Wrote meta → ${metaPath}`);
 }
 
 main().catch((err) => {
