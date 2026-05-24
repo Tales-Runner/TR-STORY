@@ -520,7 +520,11 @@ function StoryRow({
   return (
     <Link
       href={`/stories/${story.id}`}
-      prefetch
+      // GitHub Pages 정적 호스팅은 Next.js 의 HEAD-기반 prefetch + RSC
+      // payload 패턴을 거부 (HEAD → 503, GET ?_rsc=... → HTML 반환). 데스크탑
+      // 크롬에서 prefetch 가 fail 상태로 cache 되어 router.push 가 silent
+      // fail 했다. 정적 사이트라 prefetch 가치도 적으니 비활성화.
+      prefetch={false}
       className={`relative flex gap-3 rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm ${
         read ? "opacity-70" : ""
       }`}
