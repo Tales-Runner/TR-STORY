@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { formatDate, parseHashTags } from "@/lib/format";
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
@@ -99,17 +98,34 @@ function seriesLabel(story: StoryListItem): string | null {
 }
 
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
-  const params = useSearchParams();
-  const [q, setQ] = useState(params.get("q") ?? "");
-  const [cat, setCat] = useState(params.get("cat") ?? "all");
-  const [yearFilter, setYearFilter] = useState<string>(
-    params.get("year") ?? "all"
-  );
-  const [seriesFilter, setSeriesFilter] = useState<string>(
-    params.get("series") ?? "all"
-  );
+  // Avoid useSearchParams: it requires a Suspense boundary, and the
+  // boundary noticeably delays hydration of the card grid — first-time
+  // mobile visitors tapped cards and nothing happened because Link's
+  // client-side router wasn't ready yet. Read query params once in an
+  // effect instead.
+  const [q, setQ] = useState("");
+  const [cat, setCat] = useState("all");
+  const [yearFilter, setYearFilter] = useState<string>("all");
+  const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("desc");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const sp = new URLSearchParams(window.location.search);
+    const qParam = sp.get("q");
+    const catParam = sp.get("cat");
+    const yearParam = sp.get("year");
+    const seriesParam = sp.get("series");
+    // Loading URL query is an external-state sync at mount, not derived
+    // state; suppress the overzealous in-effect-setState rule here.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (qParam !== null) setQ(qParam);
+    if (catParam !== null) setCat(catParam);
+    if (yearParam !== null) setYearFilter(yearParam);
+    if (seriesParam !== null) setSeriesFilter(seriesParam);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   const { readIds, progress, ready, toggleRead } = useReadStatus();
 
