@@ -19,7 +19,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="주요 탐색"
-      className="md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-[var(--color-border)] bg-white/95 backdrop-blur"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white shadow-[0_-1px_0_var(--color-border)]"
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
     >
       <ul className="grid grid-cols-2">

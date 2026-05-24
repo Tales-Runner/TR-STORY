@@ -91,10 +91,10 @@ export function FilterSheet({
           <span className="block h-1 w-10 rounded-full bg-[var(--color-border)]" />
         </div>
 
-        <div className="flex items-center justify-between px-5 pt-2 pb-4 border-b border-[var(--color-border)]">
+        <div className="flex items-center justify-between px-5 pt-2 pb-3">
           <h2 className="text-base font-bold text-[var(--color-text)]">
             필터{activeCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--color-brand)] text-white text-[10px] font-bold align-middle">
+              <span className="ml-1.5 text-[12px] font-medium text-[var(--color-brand-strong)] align-middle">
                 {activeCount}
               </span>
             )}
@@ -104,7 +104,7 @@ export function FilterSheet({
               type="button"
               onClick={onReset}
               disabled={activeCount === 0}
-              className="rounded-lg px-2.5 py-1.5 text-xs font-medium text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] disabled:opacity-40 disabled:hover:bg-transparent"
+              className="px-2 py-1.5 text-xs font-medium text-[var(--color-text-soft)] hover:text-[var(--color-text)] disabled:opacity-40"
             >
               초기화
             </button>
@@ -113,7 +113,7 @@ export function FilterSheet({
               type="button"
               onClick={onClose}
               aria-label="닫기"
-              className="rounded-lg p-2 text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] min-h-[40px] min-w-[40px] flex items-center justify-center"
+              className="rounded-full p-2 text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[40px] min-w-[40px] flex items-center justify-center"
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                 <path
@@ -201,7 +201,7 @@ export function FilterSheet({
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-xl bg-[var(--color-brand)] py-3 text-sm font-semibold text-white hover:bg-[var(--color-brand-strong)] transition-colors"
+            className="w-full bg-[var(--color-text)] py-3.5 text-sm font-semibold text-white hover:bg-black transition-colors"
           >
             적용 완료
           </button>
@@ -243,10 +243,10 @@ function SelectInput({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`w-full appearance-none rounded-xl border px-4 py-3 text-sm font-medium pr-10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 ${
+        className={`w-full appearance-none px-4 py-3 text-sm font-medium pr-10 cursor-pointer focus:outline-none border-b-2 ${
           nonDefault
-            ? "bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)] border-[var(--color-brand)]/40"
-            : "bg-white text-[var(--color-text)] border-[var(--color-border)]"
+            ? "bg-transparent text-[var(--color-text)] border-[var(--color-text)]"
+            : "bg-[var(--color-surface-alt)] text-[var(--color-text)] border-transparent"
         }`}
       >
         {options.map((o) => (
@@ -287,17 +287,17 @@ function SegmentButton({
 }) {
   const activeCls =
     accent === "amber"
-      ? "bg-amber-400 text-white border-amber-400"
-      : "bg-[var(--color-brand)] text-white border-[var(--color-brand)]";
+      ? "bg-amber-400 text-white"
+      : "bg-[var(--color-text)] text-white";
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${
+      className={`px-3 py-3 text-sm font-medium transition-colors ${
         active
           ? activeCls
-          : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-[var(--color-brand)]/40"
+          : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
       }`}
     >
       {children}

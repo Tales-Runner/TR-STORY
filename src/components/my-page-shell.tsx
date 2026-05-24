@@ -144,9 +144,12 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         </p>
       </header>
 
-      {/* 통계 카드 — 클릭하면 해당 섹션으로 이동. 단순 표시용이 아니라
-          섹션 헤드 역할까지 겸한다. */}
-      <nav aria-label="요약" className="mb-8 grid grid-cols-3 gap-2">
+      {/* 통계 — 클릭하면 해당 섹션으로 이동. 박스 chrome 제거하고 raw 숫자가
+          시각 중심이 되도록. 칸 사이는 얇은 세로 divider 로만 분리. */}
+      <nav
+        aria-label="요약"
+        className="mb-8 grid grid-cols-3 divide-x divide-[var(--color-border)]"
+      >
         <StatCard
           href="#section-read"
           label="읽음"
@@ -187,7 +190,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             {bookmarks.length === 0 ? (
               <Empty text="아직 책갈피한 회차가 없습니다. 카드의 🔖 버튼을 눌러 표시해두세요." />
             ) : (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {bookmarks.map(({ story, at }) => (
                   <li key={`bm-${story.id}`}>
                     <SmallCard
@@ -209,7 +212,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             {continueReading.length === 0 ? (
               <Empty text="중단된 회차가 없습니다." />
             ) : (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {continueReading.map((s) => (
                   <li key={`con-${s.id}`}>
                     <SmallCard
@@ -232,7 +235,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             {favorites.length === 0 ? (
               <Empty text="즐겨찾기한 회차가 없습니다. 카드의 ★ 버튼으로 추가해보세요." />
             ) : (
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {favorites.map(({ story, at }) => (
                   <li key={`fav-${story.id}`}>
                     <SmallCard
@@ -254,21 +257,24 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             {seriesProgress.length === 0 ? (
               <Empty text="읽은 회차가 없어요. 한 편이라도 80%까지 읽으면 여기 표시됩니다." />
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col">
                 {seriesProgress.map((s) => (
-                  <li
-                    key={s.label}
-                    className="rounded-xl border border-[var(--color-border)] bg-white px-4 py-3"
-                  >
-                    <div className="flex items-baseline justify-between gap-2 mb-1.5">
-                      <span className="text-sm font-bold text-[var(--color-text)]">
+                  <li key={s.label} className="py-2.5">
+                    <div className="flex items-baseline justify-between gap-2 mb-1">
+                      <span className="text-[13px] font-semibold text-[var(--color-text)] truncate">
                         {s.label}
                       </span>
-                      <span className="text-xs text-[var(--color-text-soft)] tabular-nums">
-                        {s.read}/{s.total} · {s.percent}%
+                      <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums shrink-0">
+                        {s.read}/{s.total}
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full bg-[var(--color-surface-alt)] overflow-hidden">
+                    <div
+                      className="h-[3px] bg-[var(--color-surface-alt)] overflow-hidden"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={s.total}
+                      aria-valuenow={s.read}
+                    >
                       <div
                         className="h-full bg-[var(--color-brand)]"
                         style={{ width: `${s.percent}%` }}
@@ -293,9 +299,9 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
               <ul className="flex flex-col gap-4">
                 {readTimeline.map(({ date, items }) => (
                   <li key={date}>
-                    <h3 className="mb-2 text-sm font-bold text-[var(--color-text-soft)] sticky top-0 bg-[var(--color-surface-alt)] -mx-1 px-1 py-1 rounded">
+                    <h3 className="mb-2 text-[13px] font-bold text-[var(--color-text-soft)]">
                       {date}
-                      <span className="ml-1.5 text-xs font-normal text-[var(--color-text-muted)]">
+                      <span className="ml-1.5 text-[11px] font-normal text-[var(--color-text-muted)]">
                         {items.length}편
                       </span>
                     </h3>
@@ -365,14 +371,15 @@ function StatCard({
   value,
   sub,
   accent,
-  icon,
 }: {
   href: string;
   label: string;
   value: number;
   sub?: string;
   accent: "brand" | "amber";
-  icon: "bookmark" | "star" | "clock";
+  // icon: 호환을 위해 받지만 더 이상 시각적으로 렌더하지 않음
+  // (raw 숫자에 시선을 집중시키려고).
+  icon?: "bookmark" | "star" | "clock";
 }) {
   const colorClasses =
     accent === "amber"
@@ -381,20 +388,17 @@ function StatCard({
   return (
     <a
       href={href}
-      className="group flex flex-col gap-1 rounded-2xl border border-[var(--color-border)] bg-white px-3 py-3 text-left transition active:scale-[0.98] hover:border-[var(--color-brand)]/40 hover:shadow-sm"
+      className="group flex flex-col gap-0.5 px-1 py-2 text-left transition active:scale-[0.98]"
     >
-      <span className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-soft)]">
-        <span className={colorClasses}>
-          <SectionIcon name={icon} />
-        </span>
+      <span className="text-[11px] font-medium text-[var(--color-text-soft)]">
         {label}
       </span>
       <span className="flex items-baseline gap-1.5">
-        <span className={`text-2xl font-bold tabular-nums ${colorClasses}`}>
+        <span className={`text-[28px] font-bold tabular-nums leading-none ${colorClasses}`}>
           {value}
         </span>
         {sub && (
-          <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
+          <span className="text-[12px] text-[var(--color-text-muted)] tabular-nums">
             {sub}
           </span>
         )}
@@ -460,9 +464,9 @@ function SectionIcon({
 
 function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-[var(--color-border)] bg-white py-8 text-center text-xs text-[var(--color-text-muted)]">
+    <p className="py-6 text-center text-[12px] text-[var(--color-text-muted)] leading-relaxed">
       {text}
-    </div>
+    </p>
   );
 }
 
@@ -487,9 +491,9 @@ function SmallCard({
   return (
     <a
       href={fullHref}
-      className="flex gap-3 rounded-xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40"
+      className="flex gap-3 py-1.5 transition active:scale-[0.99]"
     >
-      <div className="relative w-[80px] h-[54px] shrink-0 bg-[var(--color-surface-alt)] overflow-hidden">
+      <div className="relative w-[88px] h-[60px] shrink-0 overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
         {story.thumbnail && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -500,27 +504,27 @@ function SmallCard({
           />
         )}
         <span
-          className={`absolute top-1 left-1 rounded-md text-white text-[9px] font-bold px-1 py-0.5 ${
+          className={`absolute top-1 left-1 rounded text-white text-[9px] font-bold px-1 py-0.5 ${
             CATEGORY_BG[story.category] ?? "bg-slate-500"
           }`}
         >
           {label}
         </span>
       </div>
-      <div className="flex-1 min-w-0 py-2 pr-3">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[10px] text-[var(--color-text-muted)]">
+      <div className="flex-1 min-w-0 pt-0.5">
+        <div className="flex items-baseline justify-between gap-2 mb-0.5">
+          <p className="text-[10px] text-[var(--color-text-muted)] tabular-nums">
             {formatDate(story.openDt)}
           </p>
-          <p className="text-[10px] text-[var(--color-brand-strong)] shrink-0">
+          <p className="text-[10px] text-[var(--color-brand-strong)] shrink-0 font-semibold">
             {timestampLabel}
           </p>
         </div>
-        <h3 className="text-sm font-bold leading-tight line-clamp-1 mb-0.5 text-[var(--color-text)]">
+        <h3 className="text-[14px] font-bold leading-tight line-clamp-1 mb-0.5 text-[var(--color-text)]">
           {story.subject}
         </h3>
-        <p className="text-[10px] text-[var(--color-text-muted)] truncate">
-          {tags.join(", ") || " "}
+        <p className="text-[11px] text-[var(--color-text-muted)] truncate">
+          {tags.join(" · ") || " "}
         </p>
       </div>
     </a>

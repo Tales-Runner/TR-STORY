@@ -415,8 +415,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   return (
     <div className="mx-auto w-full max-w-[1280px] pb-28 md:pb-12">
       {/* Slim sticky header — 로고 + 검색 + 필터버튼 + 데스크탑 마이페이지 링크.
-          연도/시리즈/정렬/안 읽음/즐겨찾기 5개는 FilterSheet 로 이동. */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[var(--color-border)]">
+          연도/시리즈/정렬/안 읽음/즐겨찾기 5개는 FilterSheet 로 이동.
+          본문 카드들이 borderless 라 header 도 underline 1 줄로만 분리. */}
+      <header className="sticky top-0 z-30 bg-white">
         <div className="flex items-center gap-2 px-4 py-2.5">
           <Link
             href="/"
@@ -428,7 +429,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             <span className="text-base hidden xs:inline sm:inline">테런 스토리</span>
           </Link>
 
-          {/* Search input — flex-1, 모바일 헤더의 핵심 컨트롤 */}
+          {/* Search input — borderless, surface-tinted background */}
           <div className="relative flex-1 min-w-0">
             <input
               type="search"
@@ -436,7 +437,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               onChange={(e) => setQ(e.target.value)}
               placeholder="제목·태그 검색"
               aria-label="제목·태그 검색"
-              className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] pl-9 pr-8 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 focus:bg-white"
+              className="w-full rounded-full bg-[var(--color-surface-alt)] pl-9 pr-8 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[var(--color-text)]/10"
             />
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
@@ -471,12 +472,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             )}
           </div>
 
-          {/* Filter button — sheet 오픈 */}
+          {/* Filter button — outlined chrome 제거, icon-only */}
           <button
             type="button"
             onClick={() => setSheetOpen(true)}
             aria-label={`필터${activeFilterCount > 0 ? ` (${activeFilterCount}개 적용)` : ""}`}
-            className="relative shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40 hover:text-[var(--color-brand)]"
+            className="relative shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path
@@ -497,7 +498,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           <Link
             href="/me/"
             title="내 책갈피 · 읽은 회차 모아보기"
-            className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
+            className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
@@ -567,7 +568,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
 
         {/* View tabs — 시리즈 / 회차. 네이버웹툰 식 underline 탭. */}
-        <div className="flex items-end border-t border-[var(--color-border)] px-4">
+        <div className="flex items-end px-4 border-b border-[var(--color-border)]">
           <ViewTab
             active={view === "series"}
             onClick={() => setView("series")}
@@ -637,7 +638,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 {continueReading.length}편
               </span>
             </h2>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 sm:gap-x-4 divide-y divide-[var(--color-border)] sm:divide-y-0">
               {continueReading.map((s) => {
                 const read = readIds.has(s.id);
                 const prog = progress.get(s.id) ?? 0;
@@ -683,7 +684,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               조건에 맞는 시리즈가 없습니다.
             </div>
           ) : (
-            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            <ul className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-5">
               {seriesCards.map((sc) => (
                 <li key={`series-${sc.label}`}>
                   <SeriesCard
@@ -700,14 +701,14 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </div>
         ) : (
           groups.map((g) => (
-            <section key={g.label} className="mb-8">
-              <h2 className="sticky top-[140px] z-20 -mx-4 mb-3 bg-white/95 backdrop-blur px-4 py-2 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
+            <section key={g.label} className="mb-6">
+              <h2 className="mb-1 flex items-baseline gap-2 text-[15px] font-bold text-[var(--color-text-soft)]">
                 {g.label}
-                <span className="text-xs font-normal text-[var(--color-text-muted)]">
-                  {g.items.length}편
+                <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                  {g.items.length}
                 </span>
               </h2>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 sm:gap-x-4 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {g.items.map((s) => {
                   const read = readIds.has(s.id);
                   const prog = progress.get(s.id) ?? 0;
@@ -904,11 +905,11 @@ function ActiveFilterChip({
 }) {
   const colors =
     accent === "amber"
-      ? "bg-amber-50 text-amber-700 border-amber-300"
-      : "bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)] border-[var(--color-brand)]/30";
+      ? "bg-amber-100 text-amber-800"
+      : "bg-[var(--color-text)] text-white";
   return (
     <span
-      className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${colors}`}
+      className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${colors}`}
     >
       <span className="truncate max-w-[120px]">{label}</span>
       <button
@@ -961,16 +962,17 @@ function SeriesCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group block w-full text-left rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm"
+      className="group block w-full text-left transition active:scale-[0.98]"
     >
-      <div className="relative aspect-[3/4] bg-[var(--color-surface-alt)] overflow-hidden">
+      {/* 이미지 자체가 카드. 카드 바깥의 border/bg 제거. */}
+      <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
         {data.latestThumbnail && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
             src={data.latestThumbnail}
             alt=""
             loading="lazy"
-            className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]"
+            className="w-full h-full object-cover transition-transform group-hover:scale-[1.04]"
           />
         )}
         {isVideo && (
@@ -991,37 +993,44 @@ function SeriesCard({
             </span>
           </div>
         )}
-        <span className="absolute top-2 left-2 rounded-md bg-black/55 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-bold text-white">
+        <span className="absolute top-2 left-2 text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
           {data.count}편
         </span>
         {readPct === 100 && (
-          <span className="absolute top-2 right-2 rounded-md bg-[var(--color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-white">
+          <span className="absolute top-2 right-2 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-white">
             완독
           </span>
         )}
-      </div>
-      <div className="p-3">
-        <h3 className="text-sm font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em] mb-1.5">
-          {data.label}
-        </h3>
-        <div className="flex items-center gap-1.5">
+        {/* 진행률을 썸네일 하단 바로 표시 — 카드 내부에 또 박스를 만들지 않음. */}
+        {readPct > 0 && readPct < 100 && (
           <div
-            className="flex-1 h-1 rounded-full bg-[var(--color-brand-soft)] overflow-hidden"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={data.totalCount}
-            aria-valuenow={data.readCount}
-            aria-label={`${data.label} ${data.readCount}/${data.totalCount} 읽음`}
+            className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/30"
+            aria-hidden
           >
             <div
               className="h-full bg-[var(--color-brand)]"
               style={{ width: `${readPct}%` }}
             />
           </div>
-          <span className="text-[10px] tabular-nums shrink-0 font-semibold text-[var(--color-brand-strong)]">
-            {data.readCount}/{data.totalCount}
-          </span>
-        </div>
+        )}
+      </div>
+      <div className="pt-2 pb-1 px-0.5">
+        <h3 className="text-[13px] font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em]">
+          {data.label}
+        </h3>
+        <p
+          className="mt-0.5 text-[11px] tabular-nums text-[var(--color-text-muted)]"
+          aria-label={`${data.readCount} 읽음 / 총 ${data.totalCount} 편`}
+        >
+          {data.readCount > 0 ? (
+            <span className="text-[var(--color-brand-strong)] font-semibold">
+              {data.readCount}
+            </span>
+          ) : (
+            <span>0</span>
+          )}
+          <span className="text-[var(--color-text-muted)]"> / {data.totalCount}</span>
+        </p>
       </div>
     </button>
   );
@@ -1077,13 +1086,12 @@ function StoryRow({
       {...(!hasImages
         ? { target: "_blank", rel: "noreferrer noopener" }
         : null)}
-      className={`relative flex gap-3 rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm ${
-        read ? "opacity-70" : ""
+      className={`relative flex gap-3 py-2 transition active:scale-[0.99] ${
+        read ? "opacity-65" : ""
       }`}
     >
-      {/* Thumbnail — 책갈피/즐겨찾기 액션이 오른쪽 위 오버레이로 들어옴
-          (네이버웹툰 식). 오른쪽 별도 컬럼이 사라져 텍스트 가독 영역이 늘어남. */}
-      <div className="relative w-[120px] h-[80px] shrink-0 bg-[var(--color-surface-alt)] overflow-hidden">
+      {/* Thumbnail — 이미지 자체가 카드. 외곽 라인/배경 제거하고 코너만 살짝. */}
+      <div className="relative w-[136px] h-[92px] shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-alt)]">
         {story.thumbnail && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -1131,19 +1139,19 @@ function StoryRow({
       </div>
 
       {/* Meta */}
-      <div className="flex-1 min-w-0 py-3 pr-3">
-        <p className="text-[11px] text-[var(--color-text-muted)] mb-0.5">
-          {formatDate(story.openDt)}
-        </p>
+      <div className="flex-1 min-w-0 pr-2 pt-0.5">
         <h3
-          className={`text-sm font-bold leading-snug line-clamp-2 mb-1 pr-14 ${
+          className={`text-[15px] font-bold leading-snug line-clamp-2 mb-0.5 pr-14 ${
             read ? "text-[var(--color-text-soft)]" : "text-[var(--color-text)]"
           }`}
         >
           {story.subject}
         </h3>
-        <p className="text-[11px] text-[var(--color-text-muted)] truncate">
-          {tags.join(", ") || " "}
+        <p className="text-[12px] text-[var(--color-text-muted)] truncate">
+          {tags.join(" · ") || " "}
+        </p>
+        <p className="text-[11px] text-[var(--color-text-muted)] mt-1 tabular-nums">
+          {formatDate(story.openDt)}
         </p>
         {showSeriesProgress && (
           <div className="mt-1.5 flex items-center gap-1.5">
@@ -1170,29 +1178,29 @@ function StoryRow({
         )}
       </div>
 
-      {/* Bookmark + Favorite — 카드 우상단 오버레이 (탭 영역 36×36) */}
-      <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+      {/* Bookmark + Favorite — meta 영역 우상단 (오버레이 chrome 없이 raw icon) */}
+      <div className="absolute top-2 right-0 flex items-center">
         <button
           onClick={onToggleBookmark}
           aria-label={bookmark ? "책갈피 해제" : "책갈피"}
           aria-pressed={bookmark}
           title={bookmark ? "책갈피 해제" : "책갈피로 표시"}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors backdrop-blur-sm ${
+          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
             bookmark
-              ? "bg-[var(--color-brand)] text-white shadow-sm"
-              : "bg-white/85 text-[var(--color-text-soft)] hover:text-[var(--color-brand)] hover:bg-white"
+              ? "text-[var(--color-brand)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
           }`}
         >
           <svg
-            width="16"
-            height="16"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill={bookmark ? "currentColor" : "none"}
           >
             <path
               d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
               stroke="currentColor"
-              strokeWidth="1.8"
+              strokeWidth="1.6"
               strokeLinejoin="round"
             />
           </svg>
@@ -1202,32 +1210,32 @@ function StoryRow({
           aria-label={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
           aria-pressed={favorite}
           title={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
-          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors backdrop-blur-sm ${
+          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
             favorite
-              ? "bg-amber-400 text-white shadow-sm"
-              : "bg-white/85 text-[var(--color-text-soft)] hover:text-amber-500 hover:bg-white"
+              ? "text-amber-500"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
           }`}
         >
           <svg
-            width="16"
-            height="16"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill={favorite ? "currentColor" : "none"}
           >
             <path
               d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
               stroke="currentColor"
-              strokeWidth="1.6"
+              strokeWidth="1.5"
               strokeLinejoin="round"
             />
           </svg>
         </button>
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar — 썸네일 하단에 얇은 라인 */}
       {progress > 0.02 && progress < 0.99 && !read && (
         <div
-          className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--color-brand-soft)]"
+          className="absolute left-0 top-[88px] w-[136px] h-[3px] bg-black/10 overflow-hidden rounded-b-lg"
           aria-hidden
         >
           <div
