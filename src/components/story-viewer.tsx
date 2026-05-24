@@ -412,7 +412,7 @@ export function StoryViewer({
             onClick={goPrev}
             disabled={!hasPrev}
             aria-label="이전 화"
-            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`lg:hidden rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
               hasPrev
                 ? "bg-white/5 text-white/75 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"
@@ -420,7 +420,7 @@ export function StoryViewer({
           >
             ← 이전
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 lg:mx-auto">
             {!hasVideo && (
               <button
                 onClick={() =>
@@ -440,7 +440,7 @@ export function StoryViewer({
             onClick={goNext}
             disabled={!hasNext}
             aria-label="다음 화"
-            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`lg:hidden rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
               hasNext
                 ? "bg-white/5 text-white/75 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"

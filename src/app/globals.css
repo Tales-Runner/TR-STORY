@@ -42,6 +42,14 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Suppress browser default focus ring for non-keyboard focus (mouse
+   clicks, programmatic .focus() from focus-trap). Keyboard Tab users
+   still get the :focus-visible ring for a11y. */
+:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+
 * {
   box-sizing: border-box;
 }
