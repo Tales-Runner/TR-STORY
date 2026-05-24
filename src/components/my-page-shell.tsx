@@ -8,6 +8,7 @@ import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
 import { seriesLabel } from "@/lib/series";
+import { BottomNav } from "./bottom-nav";
 
 function formatTimestamp(ms: number): string {
   const d = new Date(ms);
@@ -122,11 +123,12 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
     : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[900px] px-4 pb-24 pt-6">
+    <div className="mx-auto w-full max-w-[900px] px-4 pb-28 md:pb-12 pt-6">
       <header className="mb-6">
+        {/* "← 홈으로" 는 모바일에선 BottomNav 가 대신함. 데스크탑에서만 보임. */}
         <Link
           href="/"
-          className="inline-flex items-center gap-1 text-xs text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
+          className="hidden md:inline-flex items-center gap-1 text-xs text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
         >
           ← 홈으로
         </Link>
@@ -320,6 +322,8 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           개인정보 처리 안내
         </Link>
       </footer>
+
+      <BottomNav />
     </div>
   );
 }

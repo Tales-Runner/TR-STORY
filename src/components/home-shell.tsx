@@ -15,6 +15,8 @@ import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { seriesLabel } from "@/lib/series";
+import { BottomNav } from "./bottom-nav";
+import { FilterSheet } from "./filter-sheet";
 
 /** 무한 스크롤 페이지 크기 — 모바일 첫 화면에 ~2~3 줄이 보이도록. */
 const PAGE_SIZE = 12;
@@ -271,15 +273,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return g;
   }, [filtered, sort, visibleCount]);
 
-  // 시리즈 필터를 켜면 회차 순서대로(과거 → 최신) 보는 게 자연스러움 — 시즌 1
-  // 1편부터 따라가야 하니까. 풀면 다시 최신순으로 돌려놓는다. 사용자가 시리즈
-  // 픽 후 직접 정렬 토글하면 그 선택을 덮어쓰지는 않음(이 핸들러는 setSort 를
-  // 시리즈 변경 시점에만 호출하므로).
-  const handleSeriesFilter = useCallback((v: string) => {
-    setSeriesFilter(v);
-    setSort(v === "all" ? "desc" : "asc");
-  }, []);
-
   const handleToggleBookmark = useCallback(
     (e: React.MouseEvent, id: number) => {
       e.preventDefault();
@@ -300,52 +293,73 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const yearChoices = allGroups.map((g) => g.label);
 
+  // 비-기본 필터 카운트 — 필터 버튼 옆 뱃지로 노출.
+  const activeFilterCount =
+    (yearFilter !== "all" ? 1 : 0) +
+    (seriesFilter !== "all" ? 1 : 0) +
+    (sort !== "desc" ? 1 : 0) +
+    (unreadOnly ? 1 : 0) +
+    (favoriteOnly ? 1 : 0);
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const applySheet = useCallback(
+    (next: Partial<{
+      yearFilter: string;
+      seriesFilter: string;
+      sort: SortOrder;
+      unreadOnly: boolean;
+      favoriteOnly: boolean;
+    }>) => {
+      if (next.yearFilter !== undefined) setYearFilter(next.yearFilter);
+      if (next.seriesFilter !== undefined) {
+        // handleSeriesFilter 와 동일한 sort 자동전환 로직 인라인.
+        setSeriesFilter(next.seriesFilter);
+        setSort(next.seriesFilter === "all" ? "desc" : "asc");
+      }
+      if (next.sort !== undefined) setSort(next.sort);
+      if (next.unreadOnly !== undefined) setUnreadOnly(next.unreadOnly);
+      if (next.favoriteOnly !== undefined) setFavoriteOnly(next.favoriteOnly);
+    },
+    []
+  );
+  const resetSheet = useCallback(() => {
+    setYearFilter("all");
+    setSeriesFilter("all");
+    setSort("desc");
+    setUnreadOnly(false);
+    setFavoriteOnly(false);
+  }, []);
+
   return (
-    <div className="mx-auto w-full max-w-[1280px] pb-24">
-      {/* Header */}
+    <div className="mx-auto w-full max-w-[1280px] pb-28 md:pb-12">
+      {/* Slim sticky header — 로고 + 검색 + 필터버튼 + 데스크탑 마이페이지 링크.
+          연도/시리즈/정렬/안 읽음/즐겨찾기 5개는 FilterSheet 로 이동. */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[var(--color-border)]">
-        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2 px-4 py-2.5">
           <Link
             href="/"
-            className="flex items-center gap-2 font-bold text-[var(--color-text)]"
+            className="flex items-center gap-2 font-bold text-[var(--color-text)] shrink-0"
           >
             <span className="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-[var(--color-brand)] text-white text-[11px] font-bold">
               TR
             </span>
-            <span className="text-base">테런 스토리</span>
+            <span className="text-base hidden xs:inline sm:inline">테런 스토리</span>
           </Link>
-          <Link
-            href="/me/"
-            title="내 책갈피 · 읽은 회차 모아보기"
-            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
-              <path
-                d="M4 21c0-4 4-7 8-7s8 3 8 7"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-            마이페이지
-          </Link>
-        </div>
 
-        {/* Search */}
-        <div className="px-4 pb-2">
-          <div className="relative">
+          {/* Search input — flex-1, 모바일 헤더의 핵심 컨트롤 */}
+          <div className="relative flex-1 min-w-0">
             <input
               type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="제목·태그 검색"
-              className="w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-alt)] pl-9 pr-3 py-2.5 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 focus:bg-white"
+              aria-label="제목·태그 검색"
+              className="w-full rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] pl-9 pr-8 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 focus:bg-white"
             />
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
-              width="16"
-              height="16"
+              width="14"
+              height="14"
               viewBox="0 0 20 20"
               fill="none"
             >
@@ -361,9 +375,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               <button
                 onClick={() => setQ("")}
                 aria-label="검색어 지우기"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1"
               >
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path
                     d="M3 3l10 10M13 3L3 13"
                     stroke="currentColor"
@@ -374,127 +388,100 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               </button>
             )}
           </div>
+
+          {/* Filter button — sheet 오픈 */}
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            aria-label={`필터${activeFilterCount > 0 ? ` (${activeFilterCount}개 적용)` : ""}`}
+            className="relative shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg border border-[var(--color-border)] bg-white text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40 hover:text-[var(--color-brand)]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M3 6h18M6 12h12M10 18h4"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--color-brand)] text-white text-[9px] font-bold">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* Desktop-only 마이페이지 링크 — 모바일은 BottomNav 가 담당 */}
+          <Link
+            href="/me/"
+            title="내 책갈피 · 읽은 회차 모아보기"
+            className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M4 21c0-4 4-7 8-7s8 3 8 7"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            마이페이지
+          </Link>
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-          <FilterSelect
-            value={cat}
-            onChange={setCat}
-            ariaLabel="카테고리"
-            options={[
-              { value: "all", label: "전체" },
-              { value: "1", label: "웹툰" },
-              { value: "2", label: "영상" },
-            ]}
-          />
-          <FilterSelect
-            value={yearFilter}
-            onChange={setYearFilter}
-            ariaLabel="연도"
-            options={[
-              { value: "all", label: "전체 연도" },
-              ...yearChoices.map((y) => ({ value: y, label: y })),
-            ]}
-          />
-          <FilterSelect
-            value={seriesFilter}
-            onChange={handleSeriesFilter}
-            ariaLabel="시리즈"
-            options={[
-              { value: "all", label: "전체 시리즈" },
-              ...seriesChoices.map((s) => ({ value: s, label: s })),
-            ]}
-          />
-          <button
-            onClick={() =>
-              setSort((s) => (s === "desc" ? "asc" : "desc"))
-            }
-            aria-label={sort === "desc" ? "최신순" : "오래된순"}
-            aria-pressed={sort === "asc"}
-            className="ml-auto shrink-0 inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40 min-h-[40px]"
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              {sort === "desc" ? (
-                <path
-                  d="M8 3v10M4 9l4 4 4-4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ) : (
-                <path
-                  d="M8 13V3M4 7l4-4 4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              )}
-            </svg>
-            {sort === "desc" ? "최신순" : "과거순"}
-          </button>
-          <button
-            onClick={() => {
-              setUnreadOnly((v) => !v);
-              if (!unreadOnly) setFavoriteOnly(false);
-            }}
-            aria-pressed={unreadOnly}
-            title="아직 읽지 않은 회차만 보기"
-            className={`shrink-0 inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-medium min-h-[40px] transition-colors ${
-              unreadOnly
-                ? "bg-[var(--color-brand)] text-white border-[var(--color-brand)]"
-                : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-[var(--color-brand)]/40"
-            }`}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
-                stroke="currentColor"
-                strokeWidth="1.8"
+        {/* Category pill bar — 가로 스크롤 가능 (현재 3개라 모바일에서도 다 보임) */}
+        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <CategoryPill
+              active={cat === "all"}
+              onClick={() => setCat("all")}
+            >
+              전체
+            </CategoryPill>
+            <CategoryPill
+              active={cat === "1"}
+              onClick={() => setCat("1")}
+            >
+              웹툰
+            </CategoryPill>
+            <CategoryPill
+              active={cat === "2"}
+              onClick={() => setCat("2")}
+            >
+              영상
+            </CategoryPill>
+            {/* 현재 적용 중인 시리즈/연도/즐겨찾기 가 있다면 한눈에 보이도록
+                요약 칩으로도 노출 — 탭하면 해당 필터를 즉시 해제. */}
+            {seriesFilter !== "all" && (
+              <ActiveFilterChip
+                label={seriesFilter}
+                onRemove={() => {
+                  setSeriesFilter("all");
+                  setSort("desc");
+                }}
               />
-              <circle
-                cx="12"
-                cy="12"
-                r="3"
-                stroke="currentColor"
-                strokeWidth="1.8"
+            )}
+            {yearFilter !== "all" && (
+              <ActiveFilterChip
+                label={yearFilter}
+                onRemove={() => setYearFilter("all")}
               />
-              {!unreadOnly && (
-                <path
-                  d="M4 4l16 16"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              )}
-            </svg>
-            안 읽음
-          </button>
-          <button
-            onClick={() => {
-              setFavoriteOnly((v) => !v);
-              if (!favoriteOnly) setUnreadOnly(false);
-            }}
-            aria-pressed={favoriteOnly}
-            title="즐겨찾기 한 회차만 보기"
-            className={`shrink-0 inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-medium min-h-[40px] transition-colors ${
-              favoriteOnly
-                ? "bg-amber-400 text-white border-amber-400"
-                : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-amber-400/60"
-            }`}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill={favoriteOnly ? "currentColor" : "none"}>
-              <path
-                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinejoin="round"
+            )}
+            {unreadOnly && (
+              <ActiveFilterChip
+                label="안 읽음만"
+                onRemove={() => setUnreadOnly(false)}
               />
-            </svg>
-            즐겨찾기
-          </button>
+            )}
+            {favoriteOnly && (
+              <ActiveFilterChip
+                label="즐겨찾기만"
+                onRemove={() => setFavoriteOnly(false)}
+                accent="amber"
+              />
+            )}
+          </div>
         </div>
       </header>
 
@@ -701,56 +688,88 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </p>
         </div>
       </main>
+
+      <FilterSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        yearChoices={yearChoices}
+        seriesChoices={seriesChoices}
+        values={{
+          yearFilter,
+          seriesFilter,
+          sort,
+          unreadOnly,
+          favoriteOnly,
+        }}
+        onChange={applySheet}
+        onReset={resetSheet}
+        activeCount={activeFilterCount}
+      />
+
+      <BottomNav />
     </div>
   );
 }
 
-function FilterSelect({
-  value,
-  onChange,
-  options,
-  ariaLabel,
+function CategoryPill({
+  active,
+  onClick,
+  children,
 }: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  ariaLabel: string;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
 }) {
-  const nonDefault = value !== "all";
   return (
-    <div className="relative shrink-0">
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`appearance-none rounded-lg border pl-3 pr-8 py-2 text-xs font-medium min-h-[40px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 ${
-          nonDefault
-            ? "bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)] border-[var(--color-brand)]/40"
-            : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)]"
-        }`}
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors min-h-[32px] ${
+        active
+          ? "bg-[var(--color-text)] text-white"
+          : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ActiveFilterChip({
+  label,
+  onRemove,
+  accent = "brand",
+}: {
+  label: string;
+  onRemove: () => void;
+  accent?: "brand" | "amber";
+}) {
+  const colors =
+    accent === "amber"
+      ? "bg-amber-50 text-amber-700 border-amber-300"
+      : "bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)] border-[var(--color-brand)]/30";
+  return (
+    <span
+      className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium ${colors}`}
+    >
+      <span className="truncate max-w-[120px]">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`${label} 해제`}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10"
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 16 16"
-        fill="none"
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]"
-      >
-        <path
-          d="M4 6l4 4 4-4"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
+        <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M3 3l10 10M13 3L3 13"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+    </span>
   );
 }
 
@@ -813,7 +832,8 @@ function StoryRow({
         read ? "opacity-70" : ""
       }`}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail — 책갈피/즐겨찾기 액션이 오른쪽 위 오버레이로 들어옴
+          (네이버웹툰 식). 오른쪽 별도 컬럼이 사라져 텍스트 가독 영역이 늘어남. */}
       <div className="relative w-[120px] h-[80px] shrink-0 bg-[var(--color-surface-alt)] overflow-hidden">
         {story.thumbnail && (
           /* eslint-disable-next-line @next/next/no-img-element */
@@ -853,7 +873,7 @@ function StoryRow({
         </span>
         {!hasImages && (
           <span
-            className="absolute bottom-1 right-1 rounded-md bg-black/55 px-1 py-[1px] text-[9px] font-bold text-white"
+            className="absolute bottom-1 left-1.5 rounded-md bg-black/55 px-1 py-[1px] text-[9px] font-bold text-white"
             title="이 회차는 공식 페이지에서만 볼 수 있어요"
           >
             ↗ 공식
@@ -867,7 +887,7 @@ function StoryRow({
           {formatDate(story.openDt)}
         </p>
         <h3
-          className={`text-sm font-bold leading-snug line-clamp-2 mb-1 ${
+          className={`text-sm font-bold leading-snug line-clamp-2 mb-1 pr-14 ${
             read ? "text-[var(--color-text-soft)]" : "text-[var(--color-text)]"
           }`}
         >
@@ -901,29 +921,29 @@ function StoryRow({
         )}
       </div>
 
-      {/* Bookmark + Favorite toggles */}
-      <div className="shrink-0 self-stretch flex flex-col">
+      {/* Bookmark + Favorite — 카드 우상단 오버레이 (탭 영역 36×36) */}
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
         <button
           onClick={onToggleBookmark}
           aria-label={bookmark ? "책갈피 해제" : "책갈피"}
           aria-pressed={bookmark}
           title={bookmark ? "책갈피 해제" : "책갈피로 표시"}
-          className={`flex-1 px-3 min-w-[44px] flex items-center justify-center transition-colors ${
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors backdrop-blur-sm ${
             bookmark
-              ? "text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/50"
+              ? "bg-[var(--color-brand)] text-white shadow-sm"
+              : "bg-white/85 text-[var(--color-text-soft)] hover:text-[var(--color-brand)] hover:bg-white"
           }`}
         >
           <svg
-            width="18"
-            height="18"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill={bookmark ? "currentColor" : "none"}
           >
             <path
               d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
               stroke="currentColor"
-              strokeWidth="1.7"
+              strokeWidth="1.8"
               strokeLinejoin="round"
             />
           </svg>
@@ -933,22 +953,22 @@ function StoryRow({
           aria-label={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
           aria-pressed={favorite}
           title={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
-          className={`flex-1 px-3 min-w-[44px] flex items-center justify-center transition-colors border-t border-[var(--color-border)] ${
+          className={`inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors backdrop-blur-sm ${
             favorite
-              ? "text-amber-500 hover:bg-amber-50"
-              : "text-[var(--color-text-muted)] hover:text-amber-500 hover:bg-amber-50/50"
+              ? "bg-amber-400 text-white shadow-sm"
+              : "bg-white/85 text-[var(--color-text-soft)] hover:text-amber-500 hover:bg-white"
           }`}
         >
           <svg
-            width="18"
-            height="18"
+            width="16"
+            height="16"
             viewBox="0 0 24 24"
             fill={favorite ? "currentColor" : "none"}
           >
             <path
               d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
               stroke="currentColor"
-              strokeWidth={1.6}
+              strokeWidth="1.6"
               strokeLinejoin="round"
             />
           </svg>
