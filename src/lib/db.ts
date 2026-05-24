@@ -108,5 +108,86 @@ export const db = {
         });
       }, undefined);
     },
+
+    /**
+     * Atomic read-modify-write: update scrollProgress while preserving readAt.
+     * Done in a single IDB transaction so concurrent writes (e.g. mark-read)
+     * cannot interleave and clobber the readAt field.
+     */
+    updateProgress(id: number, scrollProgress: number): Promise<void> {
+      return safe(async () => {
+        const idb = await open();
+        return new Promise<void>((resolve, reject) => {
+          const tx = idb.transaction(STORE, "readwrite");
+          const store = tx.objectStore(STORE);
+          const getReq = store.get(id);
+          getReq.onsuccess = () => {
+            const existing = getReq.result as StoryEntry | undefined;
+            store.put({
+              id,
+              readAt: existing?.readAt ?? 0,
+              scrollProgress,
+            });
+          };
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      }, undefined);
+    },
+
+    /**
+     * Atomic read-modify-write: toggle readAt while preserving scrollProgress.
+     * Returns the new read state (true = marked read).
+     */
+    toggleReadAtomic(id: number): Promise<boolean> {
+      return safe(async () => {
+        const idb = await open();
+        return new Promise<boolean>((resolve, reject) => {
+          const tx = idb.transaction(STORE, "readwrite");
+          const store = tx.objectStore(STORE);
+          const getReq = store.get(id);
+          let nextRead = false;
+          getReq.onsuccess = () => {
+            const existing = getReq.result as StoryEntry | undefined;
+            nextRead = !(existing && existing.readAt > 0);
+            store.put({
+              id,
+              readAt: nextRead ? Date.now() : 0,
+              scrollProgress: existing?.scrollProgress,
+            });
+          };
+          tx.oncomplete = () => resolve(nextRead);
+          tx.onerror = () => reject(tx.error);
+        });
+      }, false);
+    },
+
+    /**
+     * Atomic mark-read (idempotent): sets readAt to now if not already > 0.
+     * Returns true if a write occurred, false if it was already read.
+     */
+    markReadAtomic(id: number): Promise<boolean> {
+      return safe(async () => {
+        const idb = await open();
+        return new Promise<boolean>((resolve, reject) => {
+          const tx = idb.transaction(STORE, "readwrite");
+          const store = tx.objectStore(STORE);
+          const getReq = store.get(id);
+          let wrote = false;
+          getReq.onsuccess = () => {
+            const existing = getReq.result as StoryEntry | undefined;
+            if (existing && existing.readAt > 0) return; // already read
+            store.put({
+              id,
+              readAt: Date.now(),
+              scrollProgress: existing?.scrollProgress,
+            });
+            wrote = true;
+          };
+          tx.oncomplete = () => resolve(wrote);
+          tx.onerror = () => reject(tx.error);
+        });
+      }, false);
+    },
   },
 };

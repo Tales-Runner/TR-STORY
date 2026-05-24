@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, type StoryEntry } from "./db";
 
 export interface ReadStatus {
@@ -14,6 +14,8 @@ export interface ReadStatus {
 export function useReadStatus(): ReadStatus {
   const [entries, setEntries] = useState<StoryEntry[]>([]);
   const [ready, setReady] = useState(false);
+  /** Per-id flag preventing concurrent toggles from colliding. */
+  const pendingRef = useRef<Set<number>>(new Set());
 
   const refresh = useCallback(async () => {
     const list = await db.stories.getAll();
@@ -22,37 +24,40 @@ export function useReadStatus(): ReadStatus {
   }, []);
 
   useEffect(() => {
-    // Loading from IndexedDB is an external-data sync, not derived state —
-    // suppress the rule that flags any setState inside an effect.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     refresh();
   }, [refresh]);
 
   const toggleRead = useCallback(
     async (id: number) => {
-      const existing = await db.stories.get(id);
-      if (existing && existing.readAt > 0) {
-        await db.stories.put({ ...existing, readAt: 0 });
-      } else {
-        await db.stories.put({
-          id,
-          readAt: Date.now(),
-          scrollProgress: existing?.scrollProgress,
-        });
+      // Drop overlapping requests for the same id — IDB's read-modify-write
+      // already serializes, but blocking the UI-level second tap prevents
+      // optimistic state flapping.
+      if (pendingRef.current.has(id)) return;
+      pendingRef.current.add(id);
+      try {
+        await db.stories.toggleReadAtomic(id);
+        await refresh();
+      } finally {
+        pendingRef.current.delete(id);
       }
-      await refresh();
     },
     [refresh]
   );
 
-  const readIds = new Set<number>();
-  const progress = new Map<number, number>();
-  for (const e of entries) {
-    if (e.readAt > 0) readIds.add(e.id);
-    if (typeof e.scrollProgress === "number" && e.scrollProgress > 0.02) {
-      progress.set(e.id, e.scrollProgress);
+  // Derive readIds / progress from entries inside useMemo so consumers see
+  // stable Set/Map references and their own useMemo deps don't churn.
+  const { readIds, progress } = useMemo(() => {
+    const ids = new Set<number>();
+    const prog = new Map<number, number>();
+    for (const e of entries) {
+      if (e.readAt > 0) ids.add(e.id);
+      if (typeof e.scrollProgress === "number" && e.scrollProgress > 0.02) {
+        prog.set(e.id, e.scrollProgress);
+      }
     }
-  }
+    return { readIds: ids, progress: prog };
+  }, [entries]);
 
   return { readIds, progress, ready, toggleRead, refresh };
 }

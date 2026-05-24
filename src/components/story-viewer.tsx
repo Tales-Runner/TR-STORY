@@ -78,52 +78,72 @@ export function StoryViewer({
   }, []);
 
   useBodyScrollLock(true);
-  useFocusTrap(true, rootRef, closeBtnRef);
+  // Disable the outer focus trap while a nested dialog (drawer or help) is
+  // open — otherwise both traps register keydown listeners and the outer
+  // one cycles Tab through the inner dialog's buttons too.
+  useFocusTrap(!showDrawer && !showHelp, rootRef, closeBtnRef);
 
   useEffect(() => {
+    let cancelled = false;
     db.stories.getAll().then((entries) => {
+      if (cancelled) return;
       setReadIds(new Set(entries.filter((e) => e.readAt > 0).map((e) => e.id)));
       const cur = entries.find((e) => e.id === story.id);
       setIsRead(!!(cur && cur.readAt > 0));
     });
+    return () => {
+      cancelled = true;
+    };
   }, [story.id]);
+
+  const togglePendingRef = useRef(false);
 
   const handleMarkRead = useCallback(async () => {
     if (isRead) return;
     setIsRead(true);
     setReadIds((p) => new Set(p).add(story.id));
-    const existing = await db.stories.get(story.id);
-    await db.stories.put({
-      id: story.id,
-      readAt: Date.now(),
-      scrollProgress: existing?.scrollProgress,
-    });
-    showToast("읽음 표시");
+    // Atomic read-modify-write inside IDB so a concurrent progress save
+    // cannot clobber readAt.
+    const wrote = await db.stories.markReadAtomic(story.id);
+    if (wrote) showToast("읽음 표시");
   }, [story.id, isRead, showToast]);
 
   const toggleRead = useCallback(async () => {
-    const existing = await db.stories.get(story.id);
-    if (isRead) {
-      await db.stories.put({
-        id: story.id,
-        readAt: 0,
-        scrollProgress: existing?.scrollProgress,
-      });
-      setIsRead(false);
+    if (togglePendingRef.current) return;
+    togglePendingRef.current = true;
+    try {
+      const nextRead = await db.stories.toggleReadAtomic(story.id);
+      setIsRead(nextRead);
       setReadIds((p) => {
         const n = new Set(p);
-        n.delete(story.id);
+        if (nextRead) n.add(story.id);
+        else n.delete(story.id);
         return n;
       });
-      showToast("읽음 해제");
-    } else {
-      await handleMarkRead();
+      showToast(nextRead ? "읽음 표시" : "읽음 해제");
+    } finally {
+      togglePendingRef.current = false;
     }
-  }, [story.id, isRead, handleMarkRead, showToast]);
+  }, [story.id, showToast]);
 
+  // Reset auto-hide timer on every story change so each navigation gets a
+  // fresh hide cycle (was previously empty-deps → only fired once on mount).
+  // setState is the intended sync to the new "story" external input.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBarVisible(true);
     autoHideTimerRef.current = setTimeout(() => setBarVisible(false), 2500);
     return () => clearTimeout(autoHideTimerRef.current);
+  }, [story.id]);
+
+  // Defensive cleanup: clear ALL viewer-owned timers on unmount so they
+  // don't fire setState on an unmounted component after `goClose`.
+  useEffect(() => {
+    return () => {
+      clearTimeout(scrollTimerRef.current);
+      clearTimeout(autoHideTimerRef.current);
+      clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const { scrollProgress, handleScroll: restoreHandleScroll } =
