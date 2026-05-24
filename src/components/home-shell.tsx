@@ -40,14 +40,17 @@ function groupByYear(stories: StoryListItem[]): YearGroup[] {
     });
 }
 
+type SortOrder = "desc" | "asc";
+
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
   const [cat, setCat] = useState(params.get("cat") ?? "all");
-  const [yearFilter, setYearFilter] = useState<string | null>(
-    params.get("year") ?? null
+  const [yearFilter, setYearFilter] = useState<string>(
+    params.get("year") ?? "all"
   );
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [sort, setSort] = useState<SortOrder>("desc");
 
   const { readIds, progress, ready, toggleRead } = useReadStatus();
 
@@ -59,7 +62,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
       const c = Number(cat);
       list = list.filter((s) => s.category === c);
     }
-    if (yearFilter) {
+    if (yearFilter !== "all") {
       list = list.filter((s) => s.openYear === yearFilter);
     }
     if (q.trim()) {
@@ -76,7 +79,20 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return list;
   }, [stories, cat, yearFilter, q, unreadOnly, readIds, ready]);
 
-  const groups = useMemo(() => groupByYear(filtered), [filtered]);
+  const groups = useMemo(() => {
+    const g = groupByYear(filtered);
+    if (sort === "asc") {
+      // 그룹 자체 + 그룹 내 회차 모두 오름차순(과거 → 최신).
+      return g
+        .slice()
+        .reverse()
+        .map((group) => ({
+          ...group,
+          items: group.items.slice().reverse(),
+        }));
+    }
+    return g;
+  }, [filtered, sort]);
 
   const handleToggleRead = useCallback(
     (e: React.MouseEvent, id: number) => {
@@ -152,43 +168,90 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </div>
         </div>
 
-        {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto px-4 pb-3 scrollbar-thin">
-          <FilterChip
-            active={cat === "all"}
-            onClick={() => setCat("all")}
-            label="전체"
+        {/* Filters */}
+        <div className="flex items-center gap-2 px-4 pb-3">
+          <FilterSelect
+            value={cat}
+            onChange={setCat}
+            ariaLabel="카테고리"
+            options={[
+              { value: "all", label: "전체" },
+              { value: "1", label: "웹툰" },
+              { value: "2", label: "영상" },
+            ]}
           />
-          <FilterChip
-            active={cat === "1"}
-            onClick={() => setCat("1")}
-            label="웹툰"
+          <FilterSelect
+            value={yearFilter}
+            onChange={setYearFilter}
+            ariaLabel="연도"
+            options={[
+              { value: "all", label: "전체 연도" },
+              ...yearChoices.map((y) => ({ value: y, label: y })),
+            ]}
           />
-          <FilterChip
-            active={cat === "2"}
-            onClick={() => setCat("2")}
-            label="영상"
-          />
-          <span className="w-px self-center bg-[var(--color-border)] mx-1" />
-          <FilterChip
-            active={unreadOnly}
+          <button
+            onClick={() =>
+              setSort((s) => (s === "desc" ? "asc" : "desc"))
+            }
+            aria-label={sort === "desc" ? "최신순" : "오래된순"}
+            aria-pressed={sort === "asc"}
+            className="ml-auto shrink-0 inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-2 text-xs font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40 min-h-[40px]"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+              {sort === "desc" ? (
+                <path
+                  d="M8 3v10M4 9l4 4 4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : (
+                <path
+                  d="M8 13V3M4 7l4-4 4 4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            {sort === "desc" ? "최신순" : "과거순"}
+          </button>
+          <button
             onClick={() => setUnreadOnly((v) => !v)}
-            label={unreadOnly ? "안 읽음만 ✓" : "안 읽음만"}
-          />
-          <span className="w-px self-center bg-[var(--color-border)] mx-1" />
-          <FilterChip
-            active={!yearFilter}
-            onClick={() => setYearFilter(null)}
-            label="연도 전체"
-          />
-          {yearChoices.map((y) => (
-            <FilterChip
-              key={y}
-              active={yearFilter === y}
-              onClick={() => setYearFilter(y)}
-              label={y}
-            />
-          ))}
+            aria-label="안 읽음만 보기"
+            aria-pressed={unreadOnly}
+            title="안 읽음만 보기"
+            className={`shrink-0 grid place-items-center w-10 h-10 rounded-lg border transition-colors ${
+              unreadOnly
+                ? "bg-[var(--color-brand)] text-white border-[var(--color-brand)]"
+                : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-[var(--color-brand)]/40"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              />
+              {!unreadOnly && (
+                <path
+                  d="M4 4l16 16"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
+              )}
+            </svg>
+          </button>
         </div>
       </header>
 
@@ -245,27 +308,52 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   );
 }
 
-function FilterChip({
-  active,
-  onClick,
-  label,
+function FilterSelect({
+  value,
+  onChange,
+  options,
+  ariaLabel,
 }: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  ariaLabel: string;
 }) {
+  const nonDefault = value !== "all";
   return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium border whitespace-nowrap transition-colors ${
-        active
-          ? "bg-[var(--color-brand)] text-white border-[var(--color-brand)]"
-          : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-[var(--color-brand)]/40"
-      }`}
-    >
-      {label}
-    </button>
+    <div className="relative shrink-0">
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none rounded-lg border pl-3 pr-8 py-2 text-xs font-medium min-h-[40px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--color-brand)]/30 ${
+          nonDefault
+            ? "bg-[var(--color-brand-soft)] text-[var(--color-brand-strong)] border-[var(--color-brand)]/40"
+            : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)]"
+        }`}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 16 16"
+        fill="none"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--color-text-muted)]"
+      >
+        <path
+          d="M4 6l4 4 4-4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   );
 }
 
