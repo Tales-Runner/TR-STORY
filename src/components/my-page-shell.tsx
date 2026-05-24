@@ -117,9 +117,13 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
   const totalBookmark = bookmarks.length;
   const totalFavorite = favorites.length;
 
+  const readPercent = stories.length
+    ? Math.round((totalRead / stories.length) * 100)
+    : 0;
+
   return (
     <div className="mx-auto w-full max-w-[900px] px-4 pb-24 pt-6">
-      <header className="mb-8">
+      <header className="mb-6">
         <Link
           href="/"
           className="inline-flex items-center gap-1 text-xs text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
@@ -129,39 +133,41 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         <h1 className="mt-3 text-2xl font-bold text-[var(--color-text)]">
           마이페이지
         </h1>
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-text-soft)]">
-          <span>
-            읽음{" "}
-            <span className="font-semibold text-[var(--color-brand-strong)]">
-              {totalRead}
-            </span>
-            <span className="text-[var(--color-text-muted)]">
-              {stories.length
-                ? ` (${Math.round((totalRead / stories.length) * 100)}%)`
-                : ""}
-            </span>
-          </span>
-          <span>
-            책갈피{" "}
-            <span className="font-semibold text-[var(--color-brand-strong)]">
-              {totalBookmark}
-            </span>
-          </span>
-          <span>
-            즐겨찾기{" "}
-            <span className="font-semibold text-amber-500">
-              {totalFavorite}
-            </span>
-          </span>
-        </p>
         <p
-          className="mt-1 text-[11px] text-[var(--color-text-muted)]"
+          className="mt-2 text-[11px] text-[var(--color-text-muted)]"
           title={dataMeta.updatedAt}
         >
           사이트 데이터 {formatISODate(dataMeta.updatedAt)} (
           {relativeDays(dataMeta.updatedAt)}) · 전체 {dataMeta.totalCount}편
         </p>
       </header>
+
+      {/* 통계 카드 — 클릭하면 해당 섹션으로 이동. 단순 표시용이 아니라
+          섹션 헤드 역할까지 겸한다. */}
+      <nav aria-label="요약" className="mb-8 grid grid-cols-3 gap-2">
+        <StatCard
+          href="#section-read"
+          label="읽음"
+          value={totalRead}
+          accent="brand"
+          sub={stories.length ? `${readPercent}%` : undefined}
+          icon="clock"
+        />
+        <StatCard
+          href="#section-bookmark"
+          label="책갈피"
+          value={totalBookmark}
+          accent="brand"
+          icon="bookmark"
+        />
+        <StatCard
+          href="#section-favorite"
+          label="즐겨찾기"
+          value={totalFavorite}
+          accent="amber"
+          icon="star"
+        />
+      </nav>
 
       {!ready ? (
         <p className="text-center text-sm text-[var(--color-text-muted)] py-12">
@@ -170,7 +176,12 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
       ) : (
         <>
           {/* 책갈피 */}
-          <Section title="책갈피" count={bookmarks.length} icon="bookmark">
+          <Section
+            id="section-bookmark"
+            title="책갈피"
+            count={bookmarks.length}
+            icon="bookmark"
+          >
             {bookmarks.length === 0 ? (
               <Empty text="아직 책갈피한 회차가 없습니다. 카드의 🔖 버튼을 눌러 표시해두세요." />
             ) : (
@@ -210,7 +221,12 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           </Section>
 
           {/* 즐겨찾기 */}
-          <Section title="즐겨찾기" count={favorites.length} icon="star">
+          <Section
+            id="section-favorite"
+            title="즐겨찾기"
+            count={favorites.length}
+            icon="star"
+          >
             {favorites.length === 0 ? (
               <Empty text="즐겨찾기한 회차가 없습니다. 카드의 ★ 버튼으로 추가해보세요." />
             ) : (
@@ -264,6 +280,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
 
           {/* 읽음 타임라인 */}
           <Section
+            id="section-read"
             title="읽음 기록"
             count={readIds.size}
             icon="clock"
@@ -308,18 +325,22 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
 }
 
 function Section({
+  id,
   title,
   count,
   icon,
   children,
 }: {
+  id?: string;
   title: string;
   count: number;
   icon: "bookmark" | "bookopen" | "star" | "chart" | "clock";
   children: React.ReactNode;
 }) {
   return (
-    <section className="mb-8">
+    // scroll-mt 로 sticky 헤더가 없어도 위쪽 여유 — 통계 카드에서 점프 시
+    // 섹션 제목이 화면 최상단에 딱 붙어 잘리지 않도록.
+    <section id={id} className="mb-8 scroll-mt-4">
       <h2 className="mb-3 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
         <SectionIcon name={icon} />
         {title}
@@ -331,6 +352,50 @@ function Section({
       </h2>
       {children}
     </section>
+  );
+}
+
+function StatCard({
+  href,
+  label,
+  value,
+  sub,
+  accent,
+  icon,
+}: {
+  href: string;
+  label: string;
+  value: number;
+  sub?: string;
+  accent: "brand" | "amber";
+  icon: "bookmark" | "star" | "clock";
+}) {
+  const colorClasses =
+    accent === "amber"
+      ? "text-amber-500"
+      : "text-[var(--color-brand-strong)]";
+  return (
+    <a
+      href={href}
+      className="group flex flex-col gap-1 rounded-2xl border border-[var(--color-border)] bg-white px-3 py-3 text-left transition active:scale-[0.98] hover:border-[var(--color-brand)]/40 hover:shadow-sm"
+    >
+      <span className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-soft)]">
+        <span className={colorClasses}>
+          <SectionIcon name={icon} />
+        </span>
+        {label}
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <span className={`text-2xl font-bold tabular-nums ${colorClasses}`}>
+          {value}
+        </span>
+        {sub && (
+          <span className="text-[11px] text-[var(--color-text-muted)] tabular-nums">
+            {sub}
+          </span>
+        )}
+      </span>
+    </a>
   );
 }
 
