@@ -13,6 +13,8 @@ export interface StoryEntry {
   id: number;
   readAt: number;
   scrollProgress?: number;
+  /** Unix ms when favorited; 0/undefined = not favorited. */
+  favoritedAt?: number;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
@@ -127,6 +129,7 @@ export const db = {
               id,
               readAt: existing?.readAt ?? 0,
               scrollProgress,
+              favoritedAt: existing?.favoritedAt,
             });
           };
           tx.oncomplete = () => resolve();
@@ -154,9 +157,37 @@ export const db = {
               id,
               readAt: nextRead ? Date.now() : 0,
               scrollProgress: existing?.scrollProgress,
+              favoritedAt: existing?.favoritedAt,
             });
           };
           tx.oncomplete = () => resolve(nextRead);
+          tx.onerror = () => reject(tx.error);
+        });
+      }, false);
+    },
+
+    /**
+     * Atomic favorite toggle. Returns the new favorited state.
+     */
+    toggleFavoriteAtomic(id: number): Promise<boolean> {
+      return safe(async () => {
+        const idb = await open();
+        return new Promise<boolean>((resolve, reject) => {
+          const tx = idb.transaction(STORE, "readwrite");
+          const store = tx.objectStore(STORE);
+          const getReq = store.get(id);
+          let next = false;
+          getReq.onsuccess = () => {
+            const existing = getReq.result as StoryEntry | undefined;
+            next = !(existing && (existing.favoritedAt ?? 0) > 0);
+            store.put({
+              id,
+              readAt: existing?.readAt ?? 0,
+              scrollProgress: existing?.scrollProgress,
+              favoritedAt: next ? Date.now() : 0,
+            });
+          };
+          tx.oncomplete = () => resolve(next);
           tx.onerror = () => reject(tx.error);
         });
       }, false);
@@ -181,6 +212,7 @@ export const db = {
               id,
               readAt: Date.now(),
               scrollProgress: existing?.scrollProgress,
+              favoritedAt: existing?.favoritedAt,
             });
             wrote = true;
           };

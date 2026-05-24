@@ -5,17 +5,19 @@ import { db, type StoryEntry } from "./db";
 
 export interface ReadStatus {
   readIds: Set<number>;
+  favoriteIds: Set<number>;
   progress: Map<number, number>;
   ready: boolean;
   toggleRead: (id: number) => Promise<void>;
+  toggleFavorite: (id: number) => Promise<void>;
   refresh: () => Promise<void>;
 }
 
 export function useReadStatus(): ReadStatus {
   const [entries, setEntries] = useState<StoryEntry[]>([]);
   const [ready, setReady] = useState(false);
-  /** Per-id flag preventing concurrent toggles from colliding. */
-  const pendingRef = useRef<Set<number>>(new Set());
+  const readPendingRef = useRef<Set<number>>(new Set());
+  const favPendingRef = useRef<Set<number>>(new Set());
 
   const refresh = useCallback(async () => {
     const list = await db.stories.getAll();
@@ -30,34 +32,53 @@ export function useReadStatus(): ReadStatus {
 
   const toggleRead = useCallback(
     async (id: number) => {
-      // Drop overlapping requests for the same id — IDB's read-modify-write
-      // already serializes, but blocking the UI-level second tap prevents
-      // optimistic state flapping.
-      if (pendingRef.current.has(id)) return;
-      pendingRef.current.add(id);
+      if (readPendingRef.current.has(id)) return;
+      readPendingRef.current.add(id);
       try {
         await db.stories.toggleReadAtomic(id);
         await refresh();
       } finally {
-        pendingRef.current.delete(id);
+        readPendingRef.current.delete(id);
       }
     },
     [refresh]
   );
 
-  // Derive readIds / progress from entries inside useMemo so consumers see
-  // stable Set/Map references and their own useMemo deps don't churn.
-  const { readIds, progress } = useMemo(() => {
-    const ids = new Set<number>();
+  const toggleFavorite = useCallback(
+    async (id: number) => {
+      if (favPendingRef.current.has(id)) return;
+      favPendingRef.current.add(id);
+      try {
+        await db.stories.toggleFavoriteAtomic(id);
+        await refresh();
+      } finally {
+        favPendingRef.current.delete(id);
+      }
+    },
+    [refresh]
+  );
+
+  const { readIds, favoriteIds, progress } = useMemo(() => {
+    const reads = new Set<number>();
+    const favs = new Set<number>();
     const prog = new Map<number, number>();
     for (const e of entries) {
-      if (e.readAt > 0) ids.add(e.id);
+      if (e.readAt > 0) reads.add(e.id);
+      if ((e.favoritedAt ?? 0) > 0) favs.add(e.id);
       if (typeof e.scrollProgress === "number" && e.scrollProgress > 0.02) {
         prog.set(e.id, e.scrollProgress);
       }
     }
-    return { readIds: ids, progress: prog };
+    return { readIds: reads, favoriteIds: favs, progress: prog };
   }, [entries]);
 
-  return { readIds, progress, ready, toggleRead, refresh };
+  return {
+    readIds,
+    favoriteIds,
+    progress,
+    ready,
+    toggleRead,
+    toggleFavorite,
+    refresh,
+  };
 }

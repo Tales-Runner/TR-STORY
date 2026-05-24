@@ -108,7 +108,30 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
+  const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("desc");
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // First-visit hint about the read/favorite buttons. Shown once,
+  // dismissible. localStorage keeps the dismissal across sessions.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const dismissed =
+        localStorage.getItem("tr-story-onboarding-dismissed") === "1";
+      if (!dismissed) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowOnboarding(true);
+      }
+    } catch {}
+  }, []);
+
+  const dismissOnboarding = useCallback(() => {
+    setShowOnboarding(false);
+    try {
+      localStorage.setItem("tr-story-onboarding-dismissed", "1");
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -127,7 +150,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
-  const { readIds, progress, ready, toggleRead } = useReadStatus();
+  const { readIds, favoriteIds, progress, ready, toggleRead, toggleFavorite } =
+    useReadStatus();
 
   const allGroups = useMemo(() => groupByYear(stories), [stories]);
 
@@ -165,8 +189,44 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (unreadOnly && ready) {
       list = list.filter((s) => !readIds.has(s.id));
     }
+    if (favoriteOnly && ready) {
+      list = list.filter((s) => favoriteIds.has(s.id));
+    }
     return list;
-  }, [stories, cat, yearFilter, seriesFilter, q, unreadOnly, readIds, ready]);
+  }, [
+    stories,
+    cat,
+    yearFilter,
+    seriesFilter,
+    q,
+    unreadOnly,
+    favoriteOnly,
+    readIds,
+    favoriteIds,
+    ready,
+  ]);
+
+  // "이어 읽기" 후보: 스크롤 진행은 있는데 아직 읽음 마킹 안 된 회차.
+  // 최근에 본 것이 위에 오도록 progress 큰 순으로.
+  const continueReading = useMemo(() => {
+    if (!ready) return [];
+    return stories
+      .filter((s) => {
+        const p = progress.get(s.id) ?? 0;
+        return p > 0.02 && p < 0.95 && !readIds.has(s.id);
+      })
+      .sort((a, b) => (progress.get(b.id) ?? 0) - (progress.get(a.id) ?? 0))
+      .slice(0, 6);
+  }, [stories, progress, readIds, ready]);
+
+  // 어떤 필터/검색도 적용 안 됐을 때만 "이어 읽기" 보여줌.
+  const isFreshList =
+    !q.trim() &&
+    cat === "all" &&
+    yearFilter === "all" &&
+    seriesFilter === "all" &&
+    !unreadOnly &&
+    !favoriteOnly;
 
   // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
   // "캐릭터 스토리" 는 단편 모음(서로 다른 캐릭터별 1~3편) 이라 다른 시리즈와
@@ -212,6 +272,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     [toggleRead]
   );
 
+  const handleToggleFavorite = useCallback(
+    (e: React.MouseEvent, id: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavorite(id);
+    },
+    [toggleFavorite]
+  );
+
   const yearChoices = allGroups.map((g) => g.label);
 
   return (
@@ -228,8 +297,36 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </span>
             <span className="text-base">테런 스토리</span>
           </Link>
-          <div className="ml-auto text-xs text-[var(--color-text-muted)]">
-            {stories.length}편
+          <div className="ml-auto flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+            <span title="전체 회차">{stories.length}편</span>
+            {ready && readIds.size > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-[var(--color-brand-strong)]"
+                title="읽은 회차"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M5 12l5 5 9-11"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                {readIds.size}
+              </span>
+            )}
+            {ready && favoriteIds.size > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-amber-500"
+                title="즐겨찾기"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                {favoriteIds.size}
+              </span>
+            )}
           </div>
         </div>
 
@@ -337,7 +434,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             {sort === "desc" ? "최신순" : "과거순"}
           </button>
           <button
-            onClick={() => setUnreadOnly((v) => !v)}
+            onClick={() => {
+              setUnreadOnly((v) => !v);
+              if (!unreadOnly) setFavoriteOnly(false);
+            }}
             aria-label="안 읽음만 보기"
             aria-pressed={unreadOnly}
             title="안 읽음만 보기"
@@ -370,11 +470,97 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               )}
             </svg>
           </button>
+          <button
+            onClick={() => {
+              setFavoriteOnly((v) => !v);
+              if (!favoriteOnly) setUnreadOnly(false);
+            }}
+            aria-label="즐겨찾기만 보기"
+            aria-pressed={favoriteOnly}
+            title="즐겨찾기만 보기"
+            className={`shrink-0 grid place-items-center w-10 h-10 rounded-lg border transition-colors ${
+              favoriteOnly
+                ? "bg-amber-400 text-white border-amber-400"
+                : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-amber-400/60"
+            }`}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill={favoriteOnly ? "currentColor" : "none"}>
+              <path
+                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
         </div>
       </header>
 
+      {showOnboarding && (
+        <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-[12px] leading-snug text-[var(--color-brand-strong)]">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          <div className="flex-1">
+            카드 우측의 <span className="font-bold">✓ 체크</span>로 읽음 표시,{" "}
+            <span className="font-bold">★ 별</span>로 즐겨찾기. 진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능.
+          </div>
+          <button
+            onClick={dismissOnboarding}
+            aria-label="안내 닫기"
+            className="shrink-0 rounded-md px-2 py-0.5 text-[11px] text-[var(--color-brand-strong)]/70 hover:bg-white/50"
+          >
+            닫기
+          </button>
+        </div>
+      )}
+
       {/* Body */}
       <main className="px-4 pt-4">
+        {isFreshList && continueReading.length > 0 && (
+          <section className="mb-8">
+            <h2 className="mb-3 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
+              이어 읽기
+              <span className="text-xs font-normal text-[var(--color-text-muted)]">
+                {continueReading.length}편
+              </span>
+            </h2>
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {continueReading.map((s) => {
+                const read = readIds.has(s.id);
+                const prog = progress.get(s.id) ?? 0;
+                const sk = seriesLabel(s);
+                const seriesTotal = sk ? seriesCounts.get(sk) ?? 0 : 0;
+                const seriesRead = sk
+                  ? stories.reduce(
+                      (acc, st) =>
+                        seriesLabel(st) === sk && readIds.has(st.id)
+                          ? acc + 1
+                          : acc,
+                      0
+                    )
+                  : 0;
+                return (
+                  <li key={`continue-${s.id}`}>
+                    <StoryRow
+                      story={s}
+                      read={read}
+                      favorite={favoriteIds.has(s.id)}
+                      progress={prog}
+                      seriesLabel={sk}
+                      seriesRead={seriesRead}
+                      seriesTotal={seriesTotal}
+                      onToggleRead={(e) => handleToggleRead(e, s.id)}
+                      onToggleFavorite={(e) => handleToggleFavorite(e, s.id)}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
         {groups.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] py-16 text-center text-sm text-[var(--color-text-muted)]">
             조건에 맞는 결과가 없습니다.
@@ -408,11 +594,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                       <StoryRow
                         story={s}
                         read={read}
+                        favorite={favoriteIds.has(s.id)}
                         progress={prog}
                         seriesLabel={sk}
                         seriesRead={seriesRead}
                         seriesTotal={seriesTotal}
                         onToggleRead={(e) => handleToggleRead(e, s.id)}
+                        onToggleFavorite={(e) =>
+                          handleToggleFavorite(e, s.id)
+                        }
                       />
                     </li>
                   );
@@ -497,19 +687,23 @@ const CATEGORY_BG: Record<number, string> = {
 function StoryRow({
   story,
   read,
+  favorite,
   progress,
   seriesLabel,
   seriesRead,
   seriesTotal,
   onToggleRead,
+  onToggleFavorite,
 }: {
   story: StoryListItem;
   read: boolean;
+  favorite: boolean;
   progress: number;
   seriesLabel: string | null;
   seriesRead: number;
   seriesTotal: number;
   onToggleRead: (e: React.MouseEvent) => void;
+  onToggleFavorite: (e: React.MouseEvent) => void;
 }) {
   const label = STORY_CATEGORY_LABEL[story.category] ?? "기타";
   const tags = parseHashTags(story.hashTagSubject).filter(
@@ -575,27 +769,55 @@ function StoryRow({
         )}
       </div>
 
-      {/* Read toggle */}
-      <button
-        onClick={onToggleRead}
-        aria-label={read ? "읽음 해제" : "읽음 표시"}
-        aria-pressed={read}
-        className={`shrink-0 self-stretch px-3 flex items-center transition-colors ${
-          read
-            ? "text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
-            : "text-[var(--color-text-muted)] hover:text-[var(--color-brand)]"
-        }`}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-          <path
-            d="M5 12l5 5 9-11"
-            stroke="currentColor"
-            strokeWidth={read ? 2.5 : 1.6}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
+      {/* Read + Favorite toggles */}
+      <div className="shrink-0 self-stretch flex flex-col">
+        <button
+          onClick={onToggleRead}
+          aria-label={read ? "읽음 해제" : "읽음 표시"}
+          aria-pressed={read}
+          title={read ? "읽음 해제" : "읽음으로 표시"}
+          className={`flex-1 px-3 min-w-[44px] flex items-center justify-center transition-colors ${
+            read
+              ? "text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/50"
+          }`}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M5 12l5 5 9-11"
+              stroke="currentColor"
+              strokeWidth={read ? 2.5 : 1.6}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          onClick={onToggleFavorite}
+          aria-label={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
+          aria-pressed={favorite}
+          title={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
+          className={`flex-1 px-3 min-w-[44px] flex items-center justify-center transition-colors border-t border-[var(--color-border)] ${
+            favorite
+              ? "text-amber-500 hover:bg-amber-50"
+              : "text-[var(--color-text-muted)] hover:text-amber-500 hover:bg-amber-50/50"
+          }`}
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill={favorite ? "currentColor" : "none"}
+          >
+            <path
+              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+              stroke="currentColor"
+              strokeWidth={1.6}
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
 
       {/* Progress bar */}
       {progress > 0.02 && progress < 0.99 && !read && (

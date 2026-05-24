@@ -39,6 +39,7 @@ export function StoryViewer({
   const [zoomIdx, setZoomIdx] = useState(0);
   const [viewerToast, setViewerToast] = useState<string | null>(null);
   const [isRead, setIsRead] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [showHelp, setShowHelp] = useState(false);
 
@@ -70,11 +71,25 @@ export function StoryViewer({
       setReadIds(new Set(entries.filter((e) => e.readAt > 0).map((e) => e.id)));
       const cur = entries.find((e) => e.id === story.id);
       setIsRead(!!(cur && cur.readAt > 0));
+      setIsFavorite(!!(cur && (cur.favoritedAt ?? 0) > 0));
     });
     return () => {
       cancelled = true;
     };
   }, [story.id]);
+
+  const favPendingRef = useRef(false);
+  const toggleFavorite = useCallback(async () => {
+    if (favPendingRef.current) return;
+    favPendingRef.current = true;
+    try {
+      const next = await db.stories.toggleFavoriteAtomic(story.id);
+      setIsFavorite(next);
+      showToast(next ? "즐겨찾기 추가" : "즐겨찾기 해제");
+    } finally {
+      favPendingRef.current = false;
+    }
+  }, [story.id, showToast]);
 
   const togglePendingRef = useRef(false);
 
@@ -269,26 +284,54 @@ export function StoryViewer({
             {formatDate(story.openDt)} · {yearLabel}
           </p>
         </div>
-        <button
-          onClick={toggleRead}
-          aria-label={isRead ? "읽음 해제" : "읽음 표시"}
-          aria-pressed={isRead}
-          className={`shrink-0 rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
-            isRead
-              ? "text-[var(--color-brand)] bg-[var(--color-brand)]/15"
-              : "text-white/55 hover:bg-white/10"
-          }`}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M5 12l5 5 9-11"
-              stroke="currentColor"
-              strokeWidth={isRead ? 2.5 : 2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        <div className="shrink-0 flex items-center gap-1">
+          <button
+            onClick={toggleFavorite}
+            aria-label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기"}
+            aria-pressed={isFavorite}
+            title={isFavorite ? "즐겨찾기 해제" : "즐겨찾기"}
+            className={`rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
+              isFavorite
+                ? "text-amber-400 bg-amber-400/15"
+                : "text-white/55 hover:bg-white/10"
+            }`}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill={isFavorite ? "currentColor" : "none"}
+            >
+              <path
+                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+          <button
+            onClick={toggleRead}
+            aria-label={isRead ? "읽음 해제" : "읽음 표시"}
+            aria-pressed={isRead}
+            title={isRead ? "읽음 해제" : "읽음으로 표시"}
+            className={`rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
+              isRead
+                ? "text-[var(--color-brand)] bg-[var(--color-brand)]/15"
+                : "text-white/55 hover:bg-white/10"
+            }`}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M5 12l5 5 9-11"
+                stroke="currentColor"
+                strokeWidth={isRead ? 2.5 : 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Content */}
@@ -365,6 +408,24 @@ export function StoryViewer({
             >
               목록으로
             </button>
+            <a
+              href={`https://tr.game.onstove.com/archive/trstory/${story.id}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="rounded-lg bg-white/5 px-5 py-2 text-sm text-white/60 hover:bg-white/10 inline-flex items-center gap-1.5"
+              title="STOVE 공식 페이지의 이 회차에서 댓글 보기"
+            >
+              공식 댓글
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M14 4h6v6M20 4l-9 9M19 14v5a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1h5"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </a>
             {isRead && (
               <span className="text-xs text-[var(--color-brand-soft)]/80">
                 읽음 ✓
