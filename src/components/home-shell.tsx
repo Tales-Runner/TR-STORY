@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { dataMeta } from "@/lib/api";
 import {
@@ -10,9 +10,15 @@ import {
   relativeDays,
   parseHashTags,
 } from "@/lib/format";
-import { STORY_CATEGORY_LABEL } from "@/lib/types";
+import { STORY_CATEGORY, STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
+import { seriesLabel } from "@/lib/series";
+
+/** 무한 스크롤 페이지 크기 — 모바일 첫 화면에 ~2~3 줄이 보이도록. */
+const PAGE_SIZE = 12;
+const OFFICIAL_STORY_BASE = "https://tr.game.onstove.com/archive/trstory";
 
 interface YearGroup {
   label: string;
@@ -47,62 +53,6 @@ function groupByYear(stories: StoryListItem[]): YearGroup[] {
 }
 
 type SortOrder = "desc" | "asc";
-
-const GENERIC_TAGS = new Set(["웹툰", "영상", ""]);
-
-/**
- * hashTagSubject 토큰 → 표시용 시리즈 라벨 매핑. 데이터 표기와 사용자
- * 친화 표기가 어긋나는 케이스, 그리고 한 시리즈가 여러 hashTag 로 흩어진
- * 케이스(예: "테일즈"/"테일즈 시크릿", "OST" 가 언더월드 OST) 를 합친다.
- */
-const SERIES_TAG_TO_LABEL: Record<string, string> = {
-  "테일즈아틀리에": "테일즈 아틀리에",
-  "DashJump": "DashJump",
-  "라스트카오스": "라스트 카오스",
-  "데저트 킹덤": "데저트 킹덤",
-  "도화연가": "도화연가",
-  "바우나비 아일랜드": "바우나비 아일랜드",
-  "차원관리국": "차원관리국",
-  "저승컴퍼니": "저승컴퍼니",
-  "이클립스": "이클립스",
-  "감정의 제도": "감정의 제도",
-  "테일즈 드림": "테일즈 드림",
-  "언더월드": "언더월드",
-  "테일즈 시크릿": "테일즈 시크릿",
-  "테일즈": "테일즈 시크릿",
-  "OST": "언더월드",
-  "체이서": "체이서, 그 후 이야기",
-  "이매망량": "이매망량",
-  "테일즈프론티어": "테일즈 프론티어",
-  "하랑": "하랑의 이야기",
-  "라라": "라라의 이야기",
-  "테일즈 아카데미": "라라in 테일즈 아카데미",
-  "카오스제로": "카오스 제로",
-  "시즌1": "시즌1 에필로그",
-  "테런어드벤처": "테런어드벤처",
-  "캐릭터 스토리": "캐릭터 스토리",
-  "카오스 어둠의 날개": "카오스 어둠의 날개",
-  "카오스대반격": "카오스 대반격",
-  "카오스 냉기의 얼음산맥": "카오스 냉기의 얼음산맥",
-  "카오스 새로운 시작": "카오스 새로운 시작",
-  "카오스제너레이션": "카오스 제너레이션",
-};
-
-function rawSeriesKey(story: StoryListItem): string | null {
-  // "캐릭터 스토리" 묶음은 hashTag 가 아니라 openYear 로 판단.
-  if (story.openYear === "캐릭터 스토리") return "캐릭터 스토리";
-  for (const t of story.hashTagSubject.split(",")) {
-    const k = t.trim();
-    if (k && !GENERIC_TAGS.has(k)) return k;
-  }
-  return null;
-}
-
-function seriesLabel(story: StoryListItem): string | null {
-  const raw = rawSeriesKey(story);
-  if (!raw) return null;
-  return SERIES_TAG_TO_LABEL[raw] ?? raw;
-}
 
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // Avoid useSearchParams: it requires a Suspense boundary, and the
@@ -180,6 +130,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return map;
   }, [stories]);
 
+  // 검색어는 200ms 디바운스 — 키 입력마다 198편 전체 재필터링하면 모바일에서
+  // 체감 끊김이 생긴다. (즉시 반응성이 필요한 셀렉트 필터는 디바운스 안 함.)
+  const debouncedQ = useDebouncedValue(q, 200);
+
   const filtered = useMemo(() => {
     let list = stories;
     if (cat !== "all") {
@@ -192,8 +146,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (seriesFilter !== "all") {
       list = list.filter((s) => seriesLabel(s) === seriesFilter);
     }
-    if (q.trim()) {
-      const key = q.trim().toLowerCase();
+    if (debouncedQ.trim()) {
+      const key = debouncedQ.trim().toLowerCase();
       list = list.filter(
         (s) =>
           s.subject.toLowerCase().includes(key) ||
@@ -212,13 +166,42 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     cat,
     yearFilter,
     seriesFilter,
-    q,
+    debouncedQ,
     unreadOnly,
     favoriteOnly,
     readIds,
     favoriteIds,
     ready,
   ]);
+
+  // ── Infinite scroll ───────────────────────────────────────────────
+  // 필터 결과 중 PAGE_SIZE 씩 증가시키며 노출. 필터/검색이 바뀌면 visibleCount 를
+  // 다시 PAGE_SIZE 로 리셋한다 (다른 필터 결과를 끝까지 펼친 상태에서 위에 머무
+  // 르면 어색하므로). render-phase setState 로 동기화 (effect 한 프레임 늦으면
+  // 이전 필터 카드들이 잠깐 깜빡임).
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [prevFilterKey, setPrevFilterKey] = useState("");
+  const filterKey = `${cat}|${yearFilter}|${seriesFilter}|${debouncedQ}|${unreadOnly}|${favoriteOnly}|${sort}`;
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  const hasMore = visibleCount < filtered.length;
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) setVisibleCount((v) => v + PAGE_SIZE);
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore]);
 
   // "이어 읽기" 후보: 스크롤 진행은 있는데 아직 읽음 마킹 안 된 회차.
   // 최근에 본 것이 위에 오도록 progress 큰 순으로.
@@ -263,9 +246,14 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   }, [stories]);
 
   const groups = useMemo(() => {
-    const g = groupByYear(filtered);
+    // visibleCount 만큼만 노출 → 그 안에서만 그룹핑 / 정렬. 시리즈/연도가
+    // 다양해도 PAGE_SIZE 가 작아 그룹은 1~2 개로 자연 수렴함.
+    const slice =
+      sort === "asc"
+        ? [...filtered].reverse().slice(0, visibleCount)
+        : filtered.slice(0, visibleCount);
+    const g = groupByYear(slice);
     if (sort === "asc") {
-      // 그룹 자체 + 그룹 내 회차 모두 오름차순(과거 → 최신).
       return g
         .slice()
         .reverse()
@@ -275,7 +263,16 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         }));
     }
     return g;
-  }, [filtered, sort]);
+  }, [filtered, sort, visibleCount]);
+
+  // 시리즈 필터를 켜면 회차 순서대로(과거 → 최신) 보는 게 자연스러움 — 시즌 1
+  // 1편부터 따라가야 하니까. 풀면 다시 최신순으로 돌려놓는다. 사용자가 시리즈
+  // 픽 후 직접 정렬 토글하면 그 선택을 덮어쓰지는 않음(이 핸들러는 setSort 를
+  // 시리즈 변경 시점에만 호출하므로).
+  const handleSeriesFilter = useCallback((v: string) => {
+    setSeriesFilter(v);
+    setSort(v === "all" ? "desc" : "asc");
+  }, []);
 
   const handleToggleBookmark = useCallback(
     (e: React.MouseEvent, id: number) => {
@@ -399,7 +396,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           />
           <FilterSelect
             value={seriesFilter}
-            onChange={setSeriesFilter}
+            onChange={handleSeriesFilter}
             ariaLabel="시리즈"
             options={[
               { value: "all", label: "전체 시리즈" },
@@ -643,6 +640,17 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </section>
           ))
         )}
+
+        {hasMore && (
+          <div
+            ref={sentinelRef}
+            className="flex items-center justify-center py-8"
+            aria-hidden
+          >
+            <span className="h-5 w-5 rounded-full border-2 border-[var(--color-brand)]/30 border-t-[var(--color-brand)] animate-spin" />
+          </div>
+        )}
+
         <div className="mt-12 mb-6 px-2 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed space-y-2">
           <p>
             <span title={dataMeta.updatedAt}>
@@ -780,7 +788,13 @@ function StoryRow({
   const showSeriesProgress =
     seriesLabel && seriesTotal >= 2 && seriesRead > 0;
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  const fullHref = `${basePath}/stories/${story.id}/`;
+  // 이 미러에 패널 이미지가 없으면 (영상이 외부 호스트로만 제공되거나 데이터에
+  // 누락) 내부 뷰어로 보내봤자 빈 화면이라 의미가 없음 — 공식 페이지로 새창 폴백.
+  const hasImages = story.hasImages;
+  const fullHref = hasImages
+    ? `${basePath}/stories/${story.id}/`
+    : `${OFFICIAL_STORY_BASE}/${story.id}`;
+  const isVideo = story.category === STORY_CATEGORY.VIDEO;
   return (
     /* GitHub Pages 정적 호스팅에서 Next.js Link 의 client-side router.push 가
        silent fail 하는 케이스가 있어 (HEAD prefetch → 503, RSC payload 가
@@ -789,6 +803,9 @@ function StoryRow({
        무해. */
     <a
       href={fullHref}
+      {...(!hasImages
+        ? { target: "_blank", rel: "noreferrer noopener" }
+        : null)}
       className={`relative flex gap-3 rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm ${
         read ? "opacity-70" : ""
       }`}
@@ -806,6 +823,24 @@ function StoryRow({
             }`}
           />
         )}
+        {isVideo && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            aria-hidden
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="ml-0.5 text-white"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          </div>
+        )}
         <span
           className={`absolute top-1.5 left-1.5 rounded-md text-white text-[10px] font-bold px-1.5 py-0.5 ${
             CATEGORY_BG[story.category] ?? "bg-slate-500"
@@ -813,6 +848,14 @@ function StoryRow({
         >
           {label}
         </span>
+        {!hasImages && (
+          <span
+            className="absolute bottom-1 right-1 rounded-md bg-black/55 px-1 py-[1px] text-[9px] font-bold text-white"
+            title="이 회차는 공식 페이지에서만 볼 수 있어요"
+          >
+            ↗ 공식
+          </span>
+        )}
       </div>
 
       {/* Meta */}

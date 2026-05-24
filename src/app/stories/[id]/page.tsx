@@ -5,6 +5,7 @@ import {
   fetchStoryList,
   listAllIds,
 } from "@/lib/api";
+import { seriesLabel } from "@/lib/series";
 import { StoryViewer } from "@/components/story-viewer";
 
 export function generateStaticParams() {
@@ -66,11 +67,29 @@ export default async function StoryPage({
   ]);
   if (!detail) notFound();
 
-  // 같은 연도(또는 비-연도 그룹) 내에서 정렬: 과거 → 최신
-  const siblings = list
-    .filter((s) => s.openYear === detail.openYear)
-    .slice()
-    .sort((a, b) => a.openDt.localeCompare(b.openDt));
+  // prev/next 네비게이션 기준 선택:
+  // 1순위 — 같은 시리즈(≥2편): 시즌제 웹툰을 1편부터 따라가는 게 자연스럽다.
+  //          연도가 갈리면 같은 시리즈인데도 끊겨 보였던 문제가 있었음.
+  // 2순위 — 같은 연도 그룹: 시리즈가 아니거나 단편이면 fallback.
+  // viewer 안에서 다음 화 버튼은 같은 뷰어가 뜬다는 전제이므로, 이미지가 없는
+  // 회차(공식 페이지로 폴백되는 회차)는 후보에서 제외한다.
+  // 어느 경우든 chronological(과거 → 최신)로 정렬.
+  const navPool = list.filter((s) => s.hasImages || s.id === n);
+  const seriesKey = seriesLabel(detail);
+  const seriesSiblings = seriesKey
+    ? navPool
+        .filter((s) => seriesLabel(s) === seriesKey)
+        .slice()
+        .sort((a, b) => a.openDt.localeCompare(b.openDt))
+    : [];
+  const useSeriesNav = seriesSiblings.length >= 2;
+  const siblings = useSeriesNav
+    ? seriesSiblings
+    : navPool
+        .filter((s) => s.openYear === detail.openYear)
+        .slice()
+        .sort((a, b) => a.openDt.localeCompare(b.openDt));
+  const yearLabel = useSeriesNav ? (seriesKey ?? detail.openYear) : detail.openYear;
 
   // Next 회차의 첫 1~2 패널을 prefetch 후보로 전달 (이어 읽기 체감 속도용).
   const idx = siblings.findIndex((s) => s.id === n);
@@ -89,7 +108,7 @@ export default async function StoryPage({
     <StoryViewer
       story={detail}
       siblings={siblings}
-      yearLabel={detail.openYear}
+      yearLabel={yearLabel}
       nextPreloadImages={nextPreloadImages}
     />
   );

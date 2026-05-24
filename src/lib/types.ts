@@ -15,6 +15,8 @@ export interface StoryListItem {
   openYear: string;
   hashTagSubject: string;
   thumbnail: string;
+  /** False = 본 미러에 패널 이미지가 없으므로 클릭 시 공식 페이지로 폴백. */
+  hasImages: boolean;
 }
 
 export interface StoryImage {

@@ -24,6 +24,7 @@ export function fetchStoryList(): Promise<StoryListItem[]> {
       openYear: s.openYear,
       hashTagSubject: s.hashTagSubject,
       thumbnail: s.thumbnail,
+      hasImages: s.images.length > 0,
     }))
   );
 }

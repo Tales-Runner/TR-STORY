@@ -7,49 +7,7 @@ import { formatDate, formatISODate, relativeDays, parseHashTags } from "@/lib/fo
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
-
-const GENERIC_TAGS = new Set(["웹툰", "영상", ""]);
-const SERIES_TAG_TO_LABEL: Record<string, string> = {
-  "테일즈아틀리에": "테일즈 아틀리에",
-  "DashJump": "DashJump",
-  "라스트카오스": "라스트 카오스",
-  "데저트 킹덤": "데저트 킹덤",
-  "도화연가": "도화연가",
-  "바우나비 아일랜드": "바우나비 아일랜드",
-  "차원관리국": "차원관리국",
-  "저승컴퍼니": "저승컴퍼니",
-  "이클립스": "이클립스",
-  "감정의 제도": "감정의 제도",
-  "테일즈 드림": "테일즈 드림",
-  "언더월드": "언더월드",
-  "테일즈 시크릿": "테일즈 시크릿",
-  "테일즈": "테일즈 시크릿",
-  "OST": "언더월드",
-  "체이서": "체이서, 그 후 이야기",
-  "이매망량": "이매망량",
-  "테일즈프론티어": "테일즈 프론티어",
-  "하랑": "하랑의 이야기",
-  "라라": "라라의 이야기",
-  "테일즈 아카데미": "라라in 테일즈 아카데미",
-  "카오스제로": "카오스 제로",
-  "시즌1": "시즌1 에필로그",
-  "테런어드벤처": "테런어드벤처",
-  "캐릭터 스토리": "캐릭터 스토리",
-  "카오스 어둠의 날개": "카오스 어둠의 날개",
-  "카오스대반격": "카오스 대반격",
-  "카오스 냉기의 얼음산맥": "카오스 냉기의 얼음산맥",
-  "카오스 새로운 시작": "카오스 새로운 시작",
-  "카오스제너레이션": "카오스 제너레이션",
-};
-
-function seriesLabel(story: StoryListItem): string | null {
-  if (story.openYear === "캐릭터 스토리") return "캐릭터 스토리";
-  for (const t of story.hashTagSubject.split(",")) {
-    const k = t.trim();
-    if (k && !GENERIC_TAGS.has(k)) return SERIES_TAG_TO_LABEL[k] ?? k;
-  }
-  return null;
-}
+import { seriesLabel } from "@/lib/series";
 
 function formatTimestamp(ms: number): string {
   const d = new Date(ms);
