@@ -874,9 +874,27 @@ function StoryRow({
           {tags.join(", ") || " "}
         </p>
         {showSeriesProgress && (
-          <p className="mt-1 text-[10px] text-[var(--color-brand-strong)]">
-            {seriesLabel} {Math.round((seriesRead / seriesTotal) * 100)}%
-          </p>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="text-[10px] text-[var(--color-text-muted)] shrink-0 truncate max-w-[88px]">
+              {seriesLabel}
+            </span>
+            <div
+              className="flex-1 h-1 rounded-full bg-[var(--color-brand-soft)] overflow-hidden"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={seriesTotal}
+              aria-valuenow={seriesRead}
+              aria-label={`${seriesLabel} 진행률 ${seriesRead}/${seriesTotal}`}
+            >
+              <div
+                className="h-full bg-[var(--color-brand)]"
+                style={{ width: `${(seriesRead / seriesTotal) * 100}%` }}
+              />
+            </div>
+            <span className="text-[10px] text-[var(--color-brand-strong)] tabular-nums shrink-0 font-semibold">
+              {seriesRead}/{seriesTotal}
+            </span>
+          </div>
         )}
       </div>
 
