@@ -566,11 +566,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           <div className="flex-1">
             카드 우측의 <span className="font-bold">🔖 책갈피</span>로
             표시해두기, <span className="font-bold">★ 별</span>로 즐겨찾기.
-            진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능. 모든 기록은{" "}
-            <Link href="/privacy" className="underline">
-              본인의 브라우저에만 저장
-            </Link>{" "}
-            됩니다.
+            진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능.
           </div>
           <button
             onClick={dismissOnboarding}
@@ -728,8 +724,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               className="underline text-[var(--color-text-soft)] hover:text-[var(--color-brand)]"
             >
               개인정보 처리 안내
-            </Link>{" "}
-            · 사용자 데이터는 브라우저에만 저장되며 외부로 전송되지 않음.
+            </Link>
           </p>
         </div>
       </main>

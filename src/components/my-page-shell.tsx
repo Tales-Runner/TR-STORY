@@ -171,9 +171,6 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         <h1 className="mt-3 text-2xl font-bold text-[var(--color-text)]">
           마이페이지
         </h1>
-        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          내 책갈피·즐겨찾기·읽은 회차. 모든 기록은 본인 브라우저에만 저장됨.
-        </p>
         <p
           className="mt-1 text-[11px] text-[var(--color-text-muted)]"
           title={dataMeta.updatedAt}
@@ -354,13 +351,10 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
         </>
       )}
 
-      <footer className="mt-12 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed">
-        모든 기록은{" "}
+      <footer className="mt-12 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-text-muted)]">
         <Link href="/privacy/" className="underline">
-          본인 브라우저에만 저장
-        </Link>{" "}
-        됩니다. 다른 기기로 옮기려면 브라우저 데이터 동기화 기능을 활용해
-        주세요.
+          개인정보 처리 안내
+        </Link>
       </footer>
     </div>
   );
