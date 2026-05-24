@@ -304,7 +304,23 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </span>
             <span className="text-base">테런 스토리</span>
           </Link>
-          <div className="ml-auto flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
+          <Link
+            href="/me/"
+            title="내 책갈피 · 읽은 회차 모아보기"
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M4 21c0-4 4-7 8-7s8 3 8 7"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            마이페이지
+          </Link>
+          <div className="flex items-center gap-2 text-[11px] text-[var(--color-text-muted)]">
             <span title="전체 회차">{stories.length}편</span>
             {ready && readIds.size > 0 && (
               <span
@@ -455,16 +471,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               setUnreadOnly((v) => !v);
               if (!unreadOnly) setFavoriteOnly(false);
             }}
-            aria-label="안 읽음만 보기"
             aria-pressed={unreadOnly}
-            title="안 읽음만 보기"
-            className={`shrink-0 grid place-items-center w-10 h-10 rounded-lg border transition-colors ${
+            title="아직 읽지 않은 회차만 보기"
+            className={`shrink-0 inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-medium min-h-[40px] transition-colors ${
               unreadOnly
                 ? "bg-[var(--color-brand)] text-white border-[var(--color-brand)]"
                 : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-[var(--color-brand)]/40"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
               <path
                 d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
                 stroke="currentColor"
@@ -486,22 +501,22 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 />
               )}
             </svg>
+            안 읽음
           </button>
           <button
             onClick={() => {
               setFavoriteOnly((v) => !v);
               if (!favoriteOnly) setUnreadOnly(false);
             }}
-            aria-label="즐겨찾기만 보기"
             aria-pressed={favoriteOnly}
-            title="즐겨찾기만 보기"
-            className={`shrink-0 grid place-items-center w-10 h-10 rounded-lg border transition-colors ${
+            title="즐겨찾기 한 회차만 보기"
+            className={`shrink-0 inline-flex items-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-medium min-h-[40px] transition-colors ${
               favoriteOnly
                 ? "bg-amber-400 text-white border-amber-400"
                 : "bg-white text-[var(--color-text-soft)] border-[var(--color-border)] hover:border-amber-400/60"
             }`}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={favoriteOnly ? "currentColor" : "none"}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill={favoriteOnly ? "currentColor" : "none"}>
               <path
                 d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                 stroke="currentColor"
@@ -509,6 +524,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 strokeLinejoin="round"
               />
             </svg>
+            즐겨찾기
           </button>
         </div>
       </header>

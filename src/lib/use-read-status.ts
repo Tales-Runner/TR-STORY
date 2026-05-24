@@ -8,6 +8,8 @@ export interface ReadStatus {
   favoriteIds: Set<number>;
   bookmarkIds: Set<number>;
   progress: Map<number, number>;
+  /** Raw entries — needed by My Page for timeline / sorting by timestamp. */
+  entries: StoryEntry[];
   ready: boolean;
   toggleRead: (id: number) => Promise<void>;
   toggleFavorite: (id: number) => Promise<void>;
@@ -101,6 +103,7 @@ export function useReadStatus(): ReadStatus {
     favoriteIds,
     bookmarkIds,
     progress,
+    entries,
     ready,
     toggleRead,
     toggleFavorite,
