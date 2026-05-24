@@ -517,14 +517,16 @@ function StoryRow({
   );
   const showSeriesProgress =
     seriesLabel && seriesTotal >= 2 && seriesRead > 0;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+  const fullHref = `${basePath}/stories/${story.id}/`;
   return (
-    <Link
-      href={`/stories/${story.id}`}
-      // GitHub Pages 정적 호스팅은 Next.js 의 HEAD-기반 prefetch + RSC
-      // payload 패턴을 거부 (HEAD → 503, GET ?_rsc=... → HTML 반환). 데스크탑
-      // 크롬에서 prefetch 가 fail 상태로 cache 되어 router.push 가 silent
-      // fail 했다. 정적 사이트라 prefetch 가치도 적으니 비활성화.
-      prefetch={false}
+    /* GitHub Pages 정적 호스팅에서 Next.js Link 의 client-side router.push 가
+       silent fail 하는 케이스가 있어 (HEAD prefetch → 503, RSC payload 가
+       HTML 으로 반환됨), 일반 <a> 로 hard-navigate 강제. 정적 사이트라
+       SPA 라우팅 가치가 크지 않고, SSR 된 HTML 이 즉시 표시되어 체감 속도도
+       무해. */
+    <a
+      href={fullHref}
       className={`relative flex gap-3 rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm ${
         read ? "opacity-70" : ""
       }`}
@@ -607,6 +609,6 @@ function StoryRow({
           />
         </div>
       )}
-    </Link>
+    </a>
   );
 }
