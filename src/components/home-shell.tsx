@@ -69,6 +69,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("desc");
+  // 메인 화면 기본 보기는 "시리즈 카드" — 웹툰 앱 표준 패턴. 사용자가 "회차"
+  // 탭을 누르면 기존의 연도별 회차 리스트를 본다. 시리즈 필터를 켜면 자연스럽게
+  // 회차 뷰로 전환됨(applySheet 참고).
+  const [view, setView] = useState<"series" | "episode">("series");
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // First-visit hint about the read/favorite buttons. Shown once,
@@ -176,7 +180,63 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     ready,
   ]);
 
-  // ── Infinite scroll ───────────────────────────────────────────────
+  // ── 시리즈 카드 ────────────────────────────────────────────────────
+  // 시리즈 뷰는 filtered 결과를 시리즈로 묶어서 보여줌 — 필터(카테고리/연도/검색/
+  // 안 읽음/즐겨찾기)가 그대로 시리즈 단위로 전파됨. 즉 "웹툰만 + 안 읽음" =
+  // 안 읽은 웹툰 회차가 1편이라도 있는 시리즈들. 대표 이미지는 그 시리즈의
+  // (filtered 안에서) 가장 최신 회차 썸네일. 시리즈 라벨이 없는 회차는 "기타"
+  // 버킷으로 묶음.
+  interface SeriesCardData {
+    label: string;
+    count: number;
+    totalCount: number;
+    readCount: number;
+    latestDt: string;
+    latestThumbnail: string;
+    sampleStory: StoryListItem;
+  }
+  const seriesCards = useMemo<SeriesCardData[]>(() => {
+    const buckets = new Map<string, StoryListItem[]>();
+    for (const s of filtered) {
+      const k = seriesLabel(s) ?? "기타";
+      const arr = buckets.get(k) ?? [];
+      arr.push(s);
+      buckets.set(k, arr);
+    }
+    const result: SeriesCardData[] = [];
+    for (const [label, items] of buckets) {
+      // openDt 가 큰 (최신) 게 앞에 오도록 정렬해 대표 썸네일 / 정렬 키로 사용.
+      const sorted = items.slice().sort((a, b) =>
+        b.openDt.localeCompare(a.openDt)
+      );
+      const latest = sorted[0];
+      const readInFiltered = sorted.reduce(
+        (acc, s) => (readIds.has(s.id) ? acc + 1 : acc),
+        0
+      );
+      result.push({
+        label,
+        count: sorted.length,
+        totalCount: seriesCounts.get(label) ?? sorted.length,
+        readCount: readInFiltered,
+        latestDt: latest.openDt,
+        latestThumbnail: latest.thumbnail,
+        sampleStory: latest,
+      });
+    }
+    result.sort((a, b) => {
+      // "캐릭터 스토리"·"기타"는 다른 본 시리즈들 뒤에 sentinel 처리
+      const aSent = a.label === "캐릭터 스토리" || a.label === "기타";
+      const bSent = b.label === "캐릭터 스토리" || b.label === "기타";
+      if (aSent !== bSent) return aSent ? 1 : -1;
+      return sort === "asc"
+        ? a.latestDt.localeCompare(b.latestDt)
+        : b.latestDt.localeCompare(a.latestDt);
+    });
+    return result;
+  }, [filtered, readIds, seriesCounts, sort]);
+
+  // ── Infinite scroll (회차 뷰 전용) ──────────────────────────────────
   // 필터 결과 중 PAGE_SIZE 씩 증가시키며 노출. 필터/검색이 바뀌면 visibleCount 를
   // 다시 PAGE_SIZE 로 리셋한다 (다른 필터 결과를 끝까지 펼친 상태에서 위에 머무
   // 르면 어색하므로). render-phase setState 로 동기화 (effect 한 프레임 늦으면
@@ -189,7 +249,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     setVisibleCount(PAGE_SIZE);
   }
 
-  const hasMore = visibleCount < filtered.length;
+  // 시리즈 뷰에서는 28개 안팎이라 페이징이 의미 없음 — 회차 뷰일 때만 hasMore.
+  const hasMore = view === "episode" && visibleCount < filtered.length;
   const sentinelRef = useRef<HTMLDivElement>(null);
   // visibleCount 를 deps 에 포함시키는 게 중요. 데스크탑 3-col 그리드에서는 한
   // 배치(12장)가 ~320px 만 늘어나는데 rootMargin 이 600px 라 sentinel 이 한 번
@@ -312,9 +373,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     }>) => {
       if (next.yearFilter !== undefined) setYearFilter(next.yearFilter);
       if (next.seriesFilter !== undefined) {
-        // handleSeriesFilter 와 동일한 sort 자동전환 로직 인라인.
+        // 시트에서 시리즈를 고르면 그 시리즈의 회차들을 보고 싶다는 뜻 — 자동으로
+        // 회차 뷰로 전환. + 시즌제는 1편부터 보는 게 자연스러워 sort=asc.
         setSeriesFilter(next.seriesFilter);
-        setSort(next.seriesFilter === "all" ? "desc" : "asc");
+        if (next.seriesFilter === "all") {
+          setSort("desc");
+        } else {
+          setSort("asc");
+          setView("episode");
+        }
       }
       if (next.sort !== undefined) setSort(next.sort);
       if (next.unreadOnly !== undefined) setUnreadOnly(next.unreadOnly);
@@ -322,6 +389,14 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     },
     []
   );
+
+  const openSeries = useCallback((label: string) => {
+    setSeriesFilter(label);
+    setSort("asc");
+    setView("episode");
+    // 시트가 열려있을 수 있어 닫음(시리즈 카드는 시트 밖에서도 클릭 가능).
+    setSheetOpen(false);
+  }, []);
   const resetSheet = useCallback(() => {
     setYearFilter("all");
     setSeriesFilter("all");
@@ -483,6 +558,24 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             )}
           </div>
         </div>
+
+        {/* View tabs — 시리즈 / 회차. 네이버웹툰 식 underline 탭. */}
+        <div className="flex items-end border-t border-[var(--color-border)] px-4">
+          <ViewTab
+            active={view === "series"}
+            onClick={() => setView("series")}
+            count={seriesCards.length}
+          >
+            시리즈
+          </ViewTab>
+          <ViewTab
+            active={view === "episode"}
+            onClick={() => setView("episode")}
+            count={filtered.length}
+          >
+            회차
+          </ViewTab>
+        </div>
       </header>
 
       {daysAgo(dataMeta.updatedAt) >= 30 && (
@@ -577,7 +670,24 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </section>
         )}
 
-        {groups.length === 0 ? (
+        {view === "series" ? (
+          seriesCards.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[var(--color-border)] py-16 text-center text-sm text-[var(--color-text-muted)]">
+              조건에 맞는 시리즈가 없습니다.
+            </div>
+          ) : (
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {seriesCards.map((sc) => (
+                <li key={`series-${sc.label}`}>
+                  <SeriesCard
+                    data={sc}
+                    onOpen={() => openSeries(sc.label)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )
+        ) : groups.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--color-border)] py-16 text-center text-sm text-[var(--color-text-muted)]">
             조건에 맞는 결과가 없습니다.
           </div>
@@ -736,6 +846,46 @@ function CategoryPill({
   );
 }
 
+function ViewTab({
+  active,
+  onClick,
+  count,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  count: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`relative inline-flex items-baseline gap-1.5 px-4 py-2.5 text-sm font-bold transition-colors ${
+        active
+          ? "text-[var(--color-text)]"
+          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
+      }`}
+    >
+      {children}
+      <span
+        className={`text-[11px] font-medium tabular-nums ${
+          active ? "text-[var(--color-brand)]" : "text-[var(--color-text-muted)]"
+        }`}
+      >
+        {count}
+      </span>
+      {active && (
+        <span
+          aria-hidden
+          className="absolute left-2 right-2 bottom-0 h-[2px] rounded-full bg-[var(--color-text)]"
+        />
+      )}
+    </button>
+  );
+}
+
 function ActiveFilterChip({
   label,
   onRemove,
@@ -777,6 +927,98 @@ const CATEGORY_BG: Record<number, string> = {
   1: "bg-[var(--color-brand)]",
   2: "bg-rose-500",
 };
+
+function SeriesCard({
+  data,
+  onOpen,
+}: {
+  data: {
+    label: string;
+    count: number;
+    totalCount: number;
+    readCount: number;
+    latestDt: string;
+    latestThumbnail: string;
+    sampleStory: StoryListItem;
+  };
+  onOpen: () => void;
+}) {
+  // 시리즈 카드는 클릭 시 회차 뷰 + 시리즈 필터 적용. 카드 자체는 <button> —
+  // a 태그가 아닌 이유는 같은 페이지 내 상태 전환이지 새 URL 로 이동하는 게
+  // 아니기 때문 (좋은 a11y).
+  const isVideo = data.sampleStory.category === STORY_CATEGORY.VIDEO;
+  const readPct = data.totalCount
+    ? Math.min(100, Math.round((data.readCount / data.totalCount) * 100))
+    : 0;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group block w-full text-left rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm"
+    >
+      <div className="relative aspect-[3/4] bg-[var(--color-surface-alt)] overflow-hidden">
+        {data.latestThumbnail && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={data.latestThumbnail}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform group-hover:scale-[1.03]"
+          />
+        )}
+        {isVideo && (
+          <div
+            className="absolute inset-0 flex items-center justify-center pointer-events-none"
+            aria-hidden
+          >
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="ml-0.5 text-white"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          </div>
+        )}
+        <span className="absolute top-2 left-2 rounded-md bg-black/55 backdrop-blur-sm px-1.5 py-0.5 text-[10px] font-bold text-white">
+          {data.count}편
+        </span>
+        {readPct === 100 && (
+          <span className="absolute top-2 right-2 rounded-md bg-[var(--color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-white">
+            완독
+          </span>
+        )}
+      </div>
+      <div className="p-3">
+        <h3 className="text-sm font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em] mb-1.5">
+          {data.label}
+        </h3>
+        <div className="flex items-center gap-1.5">
+          <div
+            className="flex-1 h-1 rounded-full bg-[var(--color-brand-soft)] overflow-hidden"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={data.totalCount}
+            aria-valuenow={data.readCount}
+            aria-label={`${data.label} ${data.readCount}/${data.totalCount} 읽음`}
+          >
+            <div
+              className="h-full bg-[var(--color-brand)]"
+              style={{ width: `${readPct}%` }}
+            />
+          </div>
+          <span className="text-[10px] tabular-nums shrink-0 font-semibold text-[var(--color-brand-strong)]">
+            {data.readCount}/{data.totalCount}
+          </span>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 function StoryRow({
   story,
