@@ -14,7 +14,6 @@ import { EpisodeDrawer } from "./episode-drawer";
 import { KeyboardHelp } from "./keyboard-help";
 import { useScrollRestore } from "./use-scroll-restore";
 
-const BRIGHTNESS_KEY = "tr-story-brightness";
 const ZOOM_LEVELS = [1, 1.2, 1.5] as const;
 
 export function StoryViewer({
@@ -37,19 +36,7 @@ export function StoryViewer({
 
   const [barVisible, setBarVisible] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [zoomIdx, setZoomIdx] = useState(0);
-  const [brightness, setBrightness] = useState(() => {
-    if (typeof window === "undefined") return 100;
-    try {
-      const saved = localStorage.getItem(BRIGHTNESS_KEY);
-      if (saved) {
-        const n = Number(saved);
-        if (Number.isFinite(n)) return n;
-      }
-    } catch {}
-    return 100;
-  });
   const [viewerToast, setViewerToast] = useState<string | null>(null);
   const [isRead, setIsRead] = useState(false);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
@@ -70,17 +57,10 @@ export function StoryViewer({
     toastTimerRef.current = setTimeout(() => setViewerToast(null), 1800);
   }, []);
 
-  const handleBrightness = useCallback((v: number) => {
-    setBrightness(v);
-    try {
-      localStorage.setItem(BRIGHTNESS_KEY, String(v));
-    } catch {}
-  }, []);
-
   useBodyScrollLock(true);
-  // Disable the outer focus trap while a nested dialog (drawer or help) is
-  // open — otherwise both traps register keydown listeners and the outer
-  // one cycles Tab through the inner dialog's buttons too.
+  // Disable the outer focus trap while a nested dialog is open — otherwise
+  // both traps register keydown listeners and the outer one cycles Tab
+  // through the inner dialog's buttons too.
   useFocusTrap(!showDrawer && !showHelp, rootRef, closeBtnRef);
 
   useEffect(() => {
@@ -314,11 +294,9 @@ export function StoryViewer({
       {/* Content */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overscroll-contain"
+        className="flex-1 overflow-y-auto overscroll-contain no-scrollbar"
         style={{
           overflowX: zoom > 1 ? "auto" : "hidden",
-          filter:
-            brightness !== 100 ? `brightness(${brightness}%)` : undefined,
         }}
         onScroll={handleScroll}
         onClick={toggleBar}
@@ -443,27 +421,6 @@ export function StoryViewer({
             ← 이전
           </button>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => setShowSettings((v) => !v)}
-              aria-label="밝기 설정"
-              className="rounded-lg p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/5"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="4"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                />
-                <path
-                  d="M12 2v3m0 14v3M4.93 4.93l2.12 2.12m9.9 9.9l2.12 2.12M2 12h3m14 0h3M4.93 19.07l2.12-2.12m9.9-9.9l2.12-2.12"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
             {!hasVideo && (
               <button
                 onClick={() =>
@@ -573,49 +530,6 @@ export function StoryViewer({
         </div>
       </div>
 
-      {showSettings && (
-        <div
-          className="fixed inset-0 z-[80]"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="absolute w-60 rounded-xl bg-[#1a1530] border border-white/10 p-4 shadow-xl"
-            style={{
-              bottom: "calc(6.5rem + env(safe-area-inset-bottom, 0px))",
-              right: "calc(50% - 240px + 1rem)",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <label className="flex items-center justify-between text-xs text-white/55 mb-3">
-              <span>밝기</span>
-              <span className="text-white/35 tabular-nums">
-                {brightness}%
-              </span>
-            </label>
-            <input
-              type="range"
-              min={50}
-              max={150}
-              value={brightness}
-              onChange={(e) => handleBrightness(Number(e.target.value))}
-              className="w-full"
-              style={{ accentColor: "var(--color-brand)" }}
-            />
-            <div className="flex justify-between text-[10px] text-white/30 mt-1">
-              <span>어둡게</span>
-              <span>밝게</span>
-            </div>
-            {brightness !== 100 && (
-              <button
-                onClick={() => handleBrightness(100)}
-                className="mt-3 w-full rounded-lg bg-white/5 py-1.5 text-xs text-white/55 hover:bg-white/10"
-              >
-                초기화
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
