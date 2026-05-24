@@ -44,13 +44,58 @@ type SortOrder = "desc" | "asc";
 
 const GENERIC_TAGS = new Set(["웹툰", "영상", ""]);
 
-/** hashTagSubject 의 첫 번째 비-제네릭 태그를 시리즈 키로 사용. */
-function seriesKey(story: StoryListItem): string | null {
+/**
+ * hashTagSubject 토큰 → 표시용 시리즈 라벨 매핑. 데이터 표기와 사용자
+ * 친화 표기가 어긋나는 케이스, 그리고 한 시리즈가 여러 hashTag 로 흩어진
+ * 케이스(예: "테일즈"/"테일즈 시크릿", "OST" 가 언더월드 OST) 를 합친다.
+ */
+const SERIES_TAG_TO_LABEL: Record<string, string> = {
+  "테일즈아틀리에": "테일즈 아틀리에",
+  "DashJump": "DashJump",
+  "라스트카오스": "라스트 카오스",
+  "데저트 킹덤": "데저트 킹덤",
+  "도화연가": "도화연가",
+  "바우나비 아일랜드": "바우나비 아일랜드",
+  "차원관리국": "차원관리국",
+  "저승컴퍼니": "저승컴퍼니",
+  "이클립스": "이클립스",
+  "감정의 제도": "감정의 제도",
+  "테일즈 드림": "테일즈 드림",
+  "언더월드": "언더월드",
+  "테일즈 시크릿": "테일즈 시크릿",
+  "테일즈": "테일즈 시크릿",
+  "OST": "언더월드",
+  "체이서": "체이서, 그 후 이야기",
+  "이매망량": "이매망량",
+  "테일즈프론티어": "테일즈 프론티어",
+  "하랑": "하랑의 이야기",
+  "라라": "라라의 이야기",
+  "테일즈 아카데미": "라라in 테일즈 아카데미",
+  "카오스제로": "카오스 제로",
+  "시즌1": "시즌1 에필로그",
+  "테런어드벤처": "테런어드벤처",
+  "캐릭터 스토리": "캐릭터 스토리",
+  "카오스 어둠의 날개": "카오스 어둠의 날개",
+  "카오스대반격": "카오스 대반격",
+  "카오스 냉기의 얼음산맥": "카오스 냉기의 얼음산맥",
+  "카오스 새로운 시작": "카오스 새로운 시작",
+  "카오스제너레이션": "카오스 제너레이션",
+};
+
+function rawSeriesKey(story: StoryListItem): string | null {
+  // "캐릭터 스토리" 묶음은 hashTag 가 아니라 openYear 로 판단.
+  if (story.openYear === "캐릭터 스토리") return "캐릭터 스토리";
   for (const t of story.hashTagSubject.split(",")) {
     const k = t.trim();
     if (k && !GENERIC_TAGS.has(k)) return k;
   }
   return null;
+}
+
+function seriesLabel(story: StoryListItem): string | null {
+  const raw = rawSeriesKey(story);
+  if (!raw) return null;
+  return SERIES_TAG_TO_LABEL[raw] ?? raw;
 }
 
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
@@ -59,6 +104,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const [cat, setCat] = useState(params.get("cat") ?? "all");
   const [yearFilter, setYearFilter] = useState<string>(
     params.get("year") ?? "all"
+  );
+  const [seriesFilter, setSeriesFilter] = useState<string>(
+    params.get("series") ?? "all"
   );
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("desc");
@@ -71,7 +119,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const seriesCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const s of stories) {
-      const k = seriesKey(s);
+      const k = seriesLabel(s);
       if (!k) continue;
       map.set(k, (map.get(k) ?? 0) + 1);
     }
@@ -87,6 +135,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (yearFilter !== "all") {
       list = list.filter((s) => s.openYear === yearFilter);
     }
+    if (seriesFilter !== "all") {
+      list = list.filter((s) => seriesLabel(s) === seriesFilter);
+    }
     if (q.trim()) {
       const key = q.trim().toLowerCase();
       list = list.filter(
@@ -99,7 +150,21 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
       list = list.filter((s) => !readIds.has(s.id));
     }
     return list;
-  }, [stories, cat, yearFilter, q, unreadOnly, readIds, ready]);
+  }, [stories, cat, yearFilter, seriesFilter, q, unreadOnly, readIds, ready]);
+
+  // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
+  const seriesChoices = useMemo(() => {
+    const latest = new Map<string, string>();
+    for (const s of stories) {
+      const k = seriesLabel(s);
+      if (!k) continue;
+      const cur = latest.get(k);
+      if (!cur || s.openDt > cur) latest.set(k, s.openDt);
+    }
+    return [...latest.entries()]
+      .sort((a, b) => b[1].localeCompare(a[1]))
+      .map(([label]) => label);
+  }, [stories]);
 
   const groups = useMemo(() => {
     const g = groupByYear(filtered);
@@ -191,7 +256,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
 
         {/* Filters */}
-        <div className="flex items-center gap-2 px-4 pb-3">
+        <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
           <FilterSelect
             value={cat}
             onChange={setCat}
@@ -209,6 +274,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             options={[
               { value: "all", label: "전체 연도" },
               ...yearChoices.map((y) => ({ value: y, label: y })),
+            ]}
+          />
+          <FilterSelect
+            value={seriesFilter}
+            onChange={setSeriesFilter}
+            ariaLabel="시리즈"
+            options={[
+              { value: "all", label: "전체 시리즈" },
+              ...seriesChoices.map((s) => ({ value: s, label: s })),
             ]}
           />
           <button
@@ -296,12 +370,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 {g.items.map((s) => {
                   const read = readIds.has(s.id);
                   const prog = progress.get(s.id) ?? 0;
-                  const sk = seriesKey(s);
+                  const sk = seriesLabel(s);
                   const seriesTotal = sk ? seriesCounts.get(sk) ?? 0 : 0;
                   const seriesRead = sk
                     ? stories.reduce(
                         (acc, st) =>
-                          seriesKey(st) === sk && readIds.has(st.id)
+                          seriesLabel(st) === sk && readIds.has(st.id)
                             ? acc + 1
                             : acc,
                         0
