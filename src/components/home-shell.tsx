@@ -150,8 +150,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
-  const { readIds, favoriteIds, progress, ready, toggleRead, toggleFavorite } =
-    useReadStatus();
+  const {
+    readIds,
+    favoriteIds,
+    bookmarkIds,
+    progress,
+    ready,
+    toggleFavorite,
+    toggleBookmark,
+  } = useReadStatus();
 
   const allGroups = useMemo(() => groupByYear(stories), [stories]);
 
@@ -263,13 +270,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return g;
   }, [filtered, sort]);
 
-  const handleToggleRead = useCallback(
+  const handleToggleBookmark = useCallback(
     (e: React.MouseEvent, id: number) => {
       e.preventDefault();
       e.stopPropagation();
-      toggleRead(id);
+      toggleBookmark(id);
     },
-    [toggleRead]
+    [toggleBookmark]
   );
 
   const handleToggleFavorite = useCallback(
@@ -301,19 +308,29 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             <span title="전체 회차">{stories.length}편</span>
             {ready && readIds.size > 0 && (
               <span
-                className="flex items-center gap-0.5 text-[var(--color-brand-strong)]"
-                title="읽은 회차"
+                className="flex items-center gap-0.5 text-[var(--color-text-soft)]"
+                title="자동 읽음 기록 (80% 이상 스크롤)"
               >
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
                   <path
-                    d="M5 12l5 5 9-11"
+                    d="M2 6h20M2 12h20M2 18h12"
                     stroke="currentColor"
-                    strokeWidth="2.6"
+                    strokeWidth="2"
                     strokeLinecap="round"
-                    strokeLinejoin="round"
                   />
                 </svg>
                 {readIds.size}
+              </span>
+            )}
+            {ready && bookmarkIds.size > 0 && (
+              <span
+                className="flex items-center gap-0.5 text-[var(--color-brand-strong)]"
+                title="책갈피"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z" />
+                </svg>
+                {bookmarkIds.size}
               </span>
             )}
             {ready && favoriteIds.size > 0 && (
@@ -503,9 +520,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <div className="flex-1">
-            카드 우측의 <span className="font-bold">✓ 체크</span>로 읽음
-            표시, <span className="font-bold">★ 별</span>로 즐겨찾기. 진행률은
-            자동 저장돼서 다시 들어가도 이어 읽기 가능. 모든 기록은{" "}
+            카드 우측의 <span className="font-bold">🔖 책갈피</span>로
+            표시해두기, <span className="font-bold">★ 별</span>로 즐겨찾기.
+            진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능. 모든 기록은{" "}
             <Link href="/privacy" className="underline">
               본인의 브라우저에만 저장
             </Link>{" "}
@@ -551,13 +568,18 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                     <StoryRow
                       story={s}
                       read={read}
+                      bookmark={bookmarkIds.has(s.id)}
                       favorite={favoriteIds.has(s.id)}
                       progress={prog}
                       seriesLabel={sk}
                       seriesRead={seriesRead}
                       seriesTotal={seriesTotal}
-                      onToggleRead={(e) => handleToggleRead(e, s.id)}
-                      onToggleFavorite={(e) => handleToggleFavorite(e, s.id)}
+                      onToggleBookmark={(e) =>
+                        handleToggleBookmark(e, s.id)
+                      }
+                      onToggleFavorite={(e) =>
+                        handleToggleFavorite(e, s.id)
+                      }
                     />
                   </li>
                 );
@@ -599,12 +621,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                       <StoryRow
                         story={s}
                         read={read}
+                        bookmark={bookmarkIds.has(s.id)}
                         favorite={favoriteIds.has(s.id)}
                         progress={prog}
                         seriesLabel={sk}
                         seriesRead={seriesRead}
                         seriesTotal={seriesTotal}
-                        onToggleRead={(e) => handleToggleRead(e, s.id)}
+                        onToggleBookmark={(e) =>
+                          handleToggleBookmark(e, s.id)
+                        }
                         onToggleFavorite={(e) =>
                           handleToggleFavorite(e, s.id)
                         }
@@ -703,22 +728,26 @@ const CATEGORY_BG: Record<number, string> = {
 function StoryRow({
   story,
   read,
+  bookmark,
   favorite,
   progress,
   seriesLabel,
   seriesRead,
   seriesTotal,
-  onToggleRead,
+  onToggleBookmark,
   onToggleFavorite,
 }: {
   story: StoryListItem;
+  /** Auto-tracked read (80% scroll). Drives the dim/grayscale visual. */
   read: boolean;
+  /** Manual bookmark (user-set). Drives the bookmark button. */
+  bookmark: boolean;
   favorite: boolean;
   progress: number;
   seriesLabel: string | null;
   seriesRead: number;
   seriesTotal: number;
-  onToggleRead: (e: React.MouseEvent) => void;
+  onToggleBookmark: (e: React.MouseEvent) => void;
   onToggleFavorite: (e: React.MouseEvent) => void;
 }) {
   const label = STORY_CATEGORY_LABEL[story.category] ?? "기타";
@@ -780,30 +809,34 @@ function StoryRow({
         </p>
         {showSeriesProgress && (
           <p className="mt-1 text-[10px] text-[var(--color-brand-strong)]">
-            {seriesLabel} {seriesRead}/{seriesTotal}
+            {seriesLabel} {Math.round((seriesRead / seriesTotal) * 100)}%
           </p>
         )}
       </div>
 
-      {/* Read + Favorite toggles */}
+      {/* Bookmark + Favorite toggles */}
       <div className="shrink-0 self-stretch flex flex-col">
         <button
-          onClick={onToggleRead}
-          aria-label={read ? "읽음 해제" : "읽음 표시"}
-          aria-pressed={read}
-          title={read ? "읽음 해제" : "읽음으로 표시"}
+          onClick={onToggleBookmark}
+          aria-label={bookmark ? "책갈피 해제" : "책갈피"}
+          aria-pressed={bookmark}
+          title={bookmark ? "책갈피 해제" : "책갈피로 표시"}
           className={`flex-1 px-3 min-w-[44px] flex items-center justify-center transition-colors ${
-            read
+            bookmark
               ? "text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]"
               : "text-[var(--color-text-muted)] hover:text-[var(--color-brand)] hover:bg-[var(--color-brand-soft)]/50"
           }`}
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill={bookmark ? "currentColor" : "none"}
+          >
             <path
-              d="M5 12l5 5 9-11"
+              d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
               stroke="currentColor"
-              strokeWidth={read ? 2.5 : 1.6}
-              strokeLinecap="round"
+              strokeWidth="1.7"
               strokeLinejoin="round"
             />
           </svg>

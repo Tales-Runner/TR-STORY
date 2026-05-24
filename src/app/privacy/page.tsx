@@ -8,7 +8,7 @@ const OFFICIAL_OG_IMAGE =
 export const metadata: Metadata = {
   title: "개인정보 처리 안내",
   description:
-    "TR Story 는 사용자 계정 · 분석 · 쿠키 · 서버 로그 없이 동작합니다. 읽음 표시 · 즐겨찾기 · 진행률은 모두 사용자 브라우저에만 저장되며 외부로 전송되지 않습니다.",
+    "TR Story 는 사용자 계정 · 분석 · 쿠키 · 서버 로그 없이 동작합니다. 책갈피 · 즐겨찾기 · 읽음 기록 · 진행률은 모두 사용자 브라우저에만 저장되며 외부로 전송되지 않습니다.",
   alternates: { canonical: "/privacy/" },
   openGraph: {
     title: "개인정보 처리 안내 — TR Story",
@@ -60,7 +60,8 @@ export default function PrivacyPage() {
           <span className="font-bold text-[var(--color-text)]">
             계정 · 분석 도구 · 쿠키 · 서버 측 사용자 로그가 없는
           </span>{" "}
-          정적 사이트입니다. 사용자가 표시한 읽음 · 즐겨찾기 · 진행률은 모두
+          정적 사이트입니다. 사용자의 책갈피 · 즐겨찾기 · 읽음 기록 ·
+          진행률은 모두
           본인의 브라우저 안 에만 저장되며 외부 서버로 전송되지 않습니다.
         </p>
       </section>
@@ -81,11 +82,14 @@ export default function PrivacyPage() {
           저장되며 외부로 전송되지 않습니다.
         </P>
         <Bullet>
-          <B>읽음 표시</B> · 회차 ID 와 표시 시각만 (브라우저 IndexedDB
-          {" "}<Code>tr-story</Code> DB).
+          <B>책갈피</B> · 사용자가 직접 표시한 회차 ID 와 시각 (브라우저
+          IndexedDB <Code>tr-story</Code> DB).
         </Bullet>
         <Bullet>
-          <B>즐겨찾기</B> · 회차 ID 와 즐겨찾기 추가 시각만.
+          <B>즐겨찾기</B> · 회차 ID 와 즐겨찾기 추가 시각.
+        </Bullet>
+        <Bullet>
+          <B>읽음 기록</B> · 80% 이상 스크롤한 회차의 ID 와 자동 기록 시각.
         </Bullet>
         <Bullet>
           <B>읽기 진행률</B> · 회차별 0~100% 스크롤 위치.
@@ -152,7 +156,7 @@ export default function PrivacyPage() {
           비워집니다.
         </Bullet>
         <Bullet>
-          <B>읽음/즐겨찾기 개별 해제</B>: 카드 또는 뷰어의 ✓ · ★ 버튼을 다시
+          <B>책갈피/즐겨찾기 개별 해제</B>: 카드 또는 뷰어의 🔖 · ★ 버튼을 다시
           눌러 해제 가능.
         </Bullet>
       </Section>

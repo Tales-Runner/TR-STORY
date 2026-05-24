@@ -40,6 +40,7 @@ export function StoryViewer({
   const [viewerToast, setViewerToast] = useState<string | null>(null);
   const [isRead, setIsRead] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(false);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [showHelp, setShowHelp] = useState(false);
 
@@ -72,6 +73,7 @@ export function StoryViewer({
       const cur = entries.find((e) => e.id === story.id);
       setIsRead(!!(cur && cur.readAt > 0));
       setIsFavorite(!!(cur && (cur.favoritedAt ?? 0) > 0));
+      setIsBookmarked(!!(cur && (cur.bookmarkedAt ?? 0) > 0));
     });
     return () => {
       cancelled = true;
@@ -91,33 +93,26 @@ export function StoryViewer({
     }
   }, [story.id, showToast]);
 
-  const togglePendingRef = useRef(false);
+  const bookmarkPendingRef = useRef(false);
 
   const handleMarkRead = useCallback(async () => {
+    // Auto read-mark when scroll passes the threshold. Silent — no toast.
+    // Read state is a history record, not a user-facing action.
     if (isRead) return;
     setIsRead(true);
     setReadIds((p) => new Set(p).add(story.id));
-    // Atomic read-modify-write inside IDB so a concurrent progress save
-    // cannot clobber readAt.
-    const wrote = await db.stories.markReadAtomic(story.id);
-    if (wrote) showToast("읽음 표시");
-  }, [story.id, isRead, showToast]);
+    await db.stories.markReadAtomic(story.id);
+  }, [story.id, isRead]);
 
-  const toggleRead = useCallback(async () => {
-    if (togglePendingRef.current) return;
-    togglePendingRef.current = true;
+  const toggleBookmark = useCallback(async () => {
+    if (bookmarkPendingRef.current) return;
+    bookmarkPendingRef.current = true;
     try {
-      const nextRead = await db.stories.toggleReadAtomic(story.id);
-      setIsRead(nextRead);
-      setReadIds((p) => {
-        const n = new Set(p);
-        if (nextRead) n.add(story.id);
-        else n.delete(story.id);
-        return n;
-      });
-      showToast(nextRead ? "읽음 표시" : "읽음 해제");
+      const next = await db.stories.toggleBookmarkAtomic(story.id);
+      setIsBookmarked(next);
+      showToast(next ? "책갈피 추가" : "책갈피 해제");
     } finally {
-      togglePendingRef.current = false;
+      bookmarkPendingRef.current = false;
     }
   }, [story.id, showToast]);
 
@@ -311,22 +306,26 @@ export function StoryViewer({
             </svg>
           </button>
           <button
-            onClick={toggleRead}
-            aria-label={isRead ? "읽음 해제" : "읽음 표시"}
-            aria-pressed={isRead}
-            title={isRead ? "읽음 해제" : "읽음으로 표시"}
+            onClick={toggleBookmark}
+            aria-label={isBookmarked ? "책갈피 해제" : "책갈피"}
+            aria-pressed={isBookmarked}
+            title={isBookmarked ? "책갈피 해제" : "책갈피로 표시"}
             className={`rounded-lg p-2 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors ${
-              isRead
+              isBookmarked
                 ? "text-[var(--color-brand)] bg-[var(--color-brand)]/15"
                 : "text-white/55 hover:bg-white/10"
             }`}
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill={isBookmarked ? "currentColor" : "none"}
+            >
               <path
-                d="M5 12l5 5 9-11"
+                d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
                 stroke="currentColor"
-                strokeWidth={isRead ? 2.5 : 2}
-                strokeLinecap="round"
+                strokeWidth="1.8"
                 strokeLinejoin="round"
               />
             </svg>
@@ -427,9 +426,7 @@ export function StoryViewer({
               </svg>
             </a>
             {isRead && (
-              <span className="text-xs text-[var(--color-brand-soft)]/80">
-                읽음 ✓
-              </span>
+              <span className="text-xs text-white/40">읽음</span>
             )}
           </div>
         </div>
