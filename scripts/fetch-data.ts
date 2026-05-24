@@ -11,8 +11,14 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const API_BASE = "https://tr.rhaon.co.kr/webb";
+// CI runner IP 대역이 차단되는 경우가 있어, 일반 브라우저처럼 보이도록 UA·
+// Referer·Origin·Accept-Language 를 채워 보낸다. 그래도 403 이 나오면
+// 로컬에서 fetch-data 를 돌리고 stories.json 을 커밋해 CI 는 빌드만 하도록
+// (`SKIP_FETCH=1 npm run build`) 우회한다.
 const UPSTREAM_USER_AGENT =
-  "Mozilla/5.0 (compatible; tr-story/1.0; +https://github.com/heznpc/TR-STORY)";
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+const UPSTREAM_REFERER = "https://tr.game.onstove.com/";
+const UPSTREAM_ORIGIN = "https://tr.game.onstove.com";
 const DELAY_MS = 300;
 const RETRIES = 2;
 
@@ -71,7 +77,10 @@ async function upstream<T>(path: string, attempt = 0): Promise<T | null> {
     const res = await fetch(url, {
       headers: {
         "User-Agent": UPSTREAM_USER_AGENT,
-        Accept: "application/json",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+        Referer: UPSTREAM_REFERER,
+        Origin: UPSTREAM_ORIGIN,
       },
     });
     if (!res.ok) {
