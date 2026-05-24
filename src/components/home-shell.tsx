@@ -189,6 +189,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const hasMore = visibleCount < filtered.length;
   const sentinelRef = useRef<HTMLDivElement>(null);
+  // visibleCount 를 deps 에 포함시키는 게 중요. 데스크탑 3-col 그리드에서는 한
+  // 배치(12장)가 ~320px 만 늘어나는데 rootMargin 이 600px 라 sentinel 이 한 번
+  // 트리거된 뒤에도 여전히 intersecting 상태 — 같은 상태가 유지되면 콜백이
+  // 다시 안 불려서 "평생 스피너" 가 됨. 매 배치마다 observer 를 재생성하면
+  // observe() 가 초기 상태를 다시 fire 해 sentinel 이 화면에 보이는 동안엔
+  // 연쇄적으로 다음 배치들을 로드해준다 (hasMore=false 되면 자동 정지).
   useEffect(() => {
     if (!hasMore) return;
     const el = sentinelRef.current;
@@ -197,11 +203,11 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
       ([entry]) => {
         if (entry.isIntersecting) setVisibleCount((v) => v + PAGE_SIZE);
       },
-      { rootMargin: "600px" }
+      { rootMargin: "400px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore]);
+  }, [hasMore, visibleCount]);
 
   // "이어 읽기" 후보: 스크롤 진행은 있는데 아직 읽음 마킹 안 된 회차.
   // 최근에 본 것이 위에 오도록 progress 큰 순으로.
