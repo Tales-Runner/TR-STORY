@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fetchStoryDetail, fetchStoryList } from "@/lib/api";
+import {
+  fetchStoryDetail,
+  fetchStoryList,
+  listAllIds,
+} from "@/lib/api";
 import { StoryViewer } from "@/components/story-viewer";
 
-export const revalidate = 1800;
+export function generateStaticParams() {
+  return listAllIds().map((id) => ({ id: String(id) }));
+}
 
 export async function generateMetadata({
   params,

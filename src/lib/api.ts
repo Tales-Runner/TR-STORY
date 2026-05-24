@@ -1,100 +1,27 @@
-import { API_BASE, UPSTREAM_USER_AGENT } from "./constants";
-import type { StoryDetail, StoryListItem, StoryImage } from "./types";
+import storiesJson from "@/data/stories.json";
+import type { StoryDetail, StoryListItem } from "./types";
 
-interface UpstreamListYear {
-  openYear: string;
-  itemList: Array<{
-    id: number;
-    subject: string;
-    category: number;
-    categoryName: string | null;
-    openYearType: string | null;
-    openDt: string;
-    hashTagSubject: string;
-    thumbnail: string;
-  }>;
-}
+const stories = storiesJson as StoryDetail[];
 
-interface UpstreamListResponse {
-  list: UpstreamListYear[];
-  totalCount: number;
-}
-
-interface UpstreamDetailItem {
-  itemId: number;
-  id: number;
-  viewOrder: number;
-  movieUrl: string | null;
-  imageUrl: string;
-  comments: string;
-}
-
-interface UpstreamDetailResponse {
-  info: {
-    subject: string;
-    openDt: string;
-    hashTagSubject: string;
-    itemList: UpstreamDetailItem[];
-  };
-}
-
-interface UpstreamEnvelope<T> {
-  resCd: string;
-  rspMsg: string;
-  result: T;
-}
-
-async function upstream<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "User-Agent": UPSTREAM_USER_AGENT,
-      Accept: "application/json",
-    },
-    next: { revalidate: 60 * 30 },
-  });
-  if (!res.ok) {
-    throw new Error(`Upstream ${res.status} ${path}`);
-  }
-  const json = (await res.json()) as UpstreamEnvelope<T>;
-  if (json.resCd !== "0000") {
-    throw new Error(`Upstream ${json.resCd} ${json.rspMsg} ${path}`);
-  }
-  return json.result;
-}
-
-export async function fetchStoryList(): Promise<StoryListItem[]> {
-  const data = await upstream<UpstreamListResponse>("/trlibrary/trstory/list");
-  const out: StoryListItem[] = [];
-  for (const group of data.list) {
-    for (const it of group.itemList) {
-      out.push({
-        id: it.id,
-        subject: it.subject,
-        category: it.category,
-        openDt: it.openDt,
-        openYear: group.openYear,
-        hashTagSubject: it.hashTagSubject,
-        thumbnail: it.thumbnail,
-      });
-    }
-  }
-  return out;
-}
-
-export async function fetchStoryDetail(id: number): Promise<StoryDetail | null> {
-  const list = await fetchStoryList();
-  const head = list.find((s) => s.id === id);
-  if (!head) return null;
-  const detail = await upstream<UpstreamDetailResponse>(
-    `/trlibrary/trstory/${id}`
+export function fetchStoryList(): Promise<StoryListItem[]> {
+  return Promise.resolve(
+    stories.map<StoryListItem>((s) => ({
+      id: s.id,
+      subject: s.subject,
+      category: s.category,
+      openDt: s.openDt,
+      openYear: s.openYear,
+      hashTagSubject: s.hashTagSubject,
+      thumbnail: s.thumbnail,
+    }))
   );
-  const images: StoryImage[] = (detail.info.itemList ?? [])
-    .slice()
-    .sort((a, b) => a.viewOrder - b.viewOrder)
-    .map((i) => ({
-      imageUrl: i.imageUrl,
-      movieUrl: i.movieUrl,
-      viewOrder: i.viewOrder,
-    }));
-  return { ...head, images };
+}
+
+export function fetchStoryDetail(id: number): Promise<StoryDetail | null> {
+  const hit = stories.find((s) => s.id === id) ?? null;
+  return Promise.resolve(hit);
+}
+
+export function listAllIds(): number[] {
+  return stories.map((s) => s.id);
 }

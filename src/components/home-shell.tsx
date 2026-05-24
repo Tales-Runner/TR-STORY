@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { formatDate, parseHashTags } from "@/lib/format";
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
@@ -39,21 +40,12 @@ function groupByYear(stories: StoryListItem[]): YearGroup[] {
     });
 }
 
-export function HomeShell({
-  stories,
-  initialQuery,
-  initialCat,
-  initialYear,
-}: {
-  stories: StoryListItem[];
-  initialQuery: string;
-  initialCat: string;
-  initialYear?: string;
-}) {
-  const [q, setQ] = useState(initialQuery);
-  const [cat, setCat] = useState(initialCat);
+export function HomeShell({ stories }: { stories: StoryListItem[] }) {
+  const params = useSearchParams();
+  const [q, setQ] = useState(params.get("q") ?? "");
+  const [cat, setCat] = useState(params.get("cat") ?? "all");
   const [yearFilter, setYearFilter] = useState<string | null>(
-    initialYear ?? null
+    params.get("year") ?? null
   );
   const [unreadOnly, setUnreadOnly] = useState(false);
 

@@ -19,8 +19,10 @@
 - **밝기/확대 조절**: 50%–150% 슬라이더(localStorage), 1× / 1.2× / 1.5×
   줌 토글.
 - **스와이프·키보드 회차 이동**: 좌우 스와이프, ←/→ /j/k 키.
-- **데이터**: 런타임 API 프록시 (`/api/stories/list`, `/api/stories/detail/[id]`)
-  로 `tr.rhaon.co.kr/webb` 를 30분 ISR 캐시. 빌드 재배포 없이 최신화.
+- **데이터**: 빌드 타임에 `tr.rhaon.co.kr/webb` 의 list + 모든 detail 을
+  한 번에 페치하여 `src/data/stories.json` 으로 굳힌 뒤 모든 회차 페이지
+  를 정적 생성. GitHub Pages 정적 호스팅 + GitHub Actions 일 1회 cron
+  으로 갱신 (수동 trigger 도 가능). Vercel/Functions 런타임 의존 없음.
 - 정렬은 공식 페이지 방식(연도 그룹 + 최신순) 그대로. 비-연도 그룹
   ("캐릭터 스토리" 등)은 뒤로.
 
@@ -56,14 +58,30 @@
 ## Local dev
 ```bash
 npm install
+npm run fetch-data   # tr.rhaon.co.kr 에서 198편 list+detail 굳히기 (1회)
 npm run dev
 ```
-기본 `http://localhost:3000`. 첫 진입 시 API ISR 캐시 채우느라 약 1초 지연 가능.
+기본 `http://localhost:3000`. `stories.json` 이 이미 커밋되어 있으니
+`fetch-data` 는 갱신이 필요할 때만 다시 돌리면 된다.
 
 빌드 검증:
 ```bash
 npm run typecheck && npm run lint && npm run build
+# out/ 에 정적 export 결과물
 ```
+
+## Deploy (GitHub Pages)
+`.github/workflows/deploy.yml` 가 다음 3 가지 트리거로 동작:
+- **push** to `main` — 코드 변경 즉시 배포
+- **schedule** 매일 02:00 UTC (KST 11:00) — 새 회차 자동 반영
+- **workflow_dispatch** — Actions 탭에서 수동 trigger
+
+빌드 단계에서 `npm run fetch-data` 가 항상 최신 데이터를 끌어오고
+`NEXT_PUBLIC_BASE_PATH=/TR-STORY` 로 `output: "export"` 빌드. 결과물
+`out/` 을 `actions/deploy-pages` 가 GitHub Pages 환경에 배포.
+
+저장소 설정에서 **Settings → Pages → Source: GitHub Actions** 한 번만
+켜주면 된다.
 
 ## Disclaimer
 - 본 프로젝트는 **비공식 미러**이며, 모든 콘텐츠 권리는 RHAON

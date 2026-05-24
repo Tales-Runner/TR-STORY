@@ -6,8 +6,6 @@ export const metadata: Metadata = {
   description:
     "테일즈런너 웹툰을 모바일에서 편하게 읽기 위한 비공식 뷰어. 진행률 자동 저장, 밝기·확대, 스와이프 이동 지원.",
   applicationName: "TR Story",
-  manifest: "/manifest.webmanifest",
-  themeColor: "#ffffff",
   openGraph: {
     title: "TR Story",
     description: "모바일에서 편하게 보는 테런 스토리",
