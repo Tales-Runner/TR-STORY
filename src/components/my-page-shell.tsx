@@ -138,7 +138,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           title={dataMeta.updatedAt}
         >
           사이트 데이터 {formatISODate(dataMeta.updatedAt)} (
-          {relativeDays(dataMeta.updatedAt)}) · 전체 {dataMeta.totalCount}편
+          {relativeDays(dataMeta.updatedAt)})
         </p>
       </header>
 

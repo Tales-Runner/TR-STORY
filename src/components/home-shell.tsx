@@ -308,13 +308,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </span>
             <span className="text-base">테런 스토리</span>
           </Link>
-          <span className="ml-auto text-[11px] text-[var(--color-text-muted)]">
-            {stories.length}편
-          </span>
           <Link
             href="/me/"
             title="내 책갈피 · 읽은 회차 모아보기"
-            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
+            className="ml-auto inline-flex items-center gap-1 rounded-lg border border-[var(--color-border)] bg-white px-2.5 py-1.5 text-[11px] font-medium text-[var(--color-text-soft)] hover:border-[var(--color-brand)]/40"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
