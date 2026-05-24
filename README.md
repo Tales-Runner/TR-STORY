@@ -1,42 +1,71 @@
 # TR Story
 
-테일즈런너 공식 라이브러리의 *웹툰/스토리*만 가볍게 따로 보기 위한 비공식 미러.
+테일즈런너 웹툰/스토리를 **모바일에서 편하게 보기 위한** 비공식 뷰어. 공식
+페이지(`tr.game.onstove.com/archive/trstory`)는 데스크탑 사이드바·그리드를 그대로 모바일에 욱여넣어 한 손 감상이 어렵다. TR Story 는 정렬·메타데이터·색감 등 공식 톤은 유지하면서 UI를 모바일 풍 하나로 통일했다.
 
 ## Currently implemented
-- 연도별 스토리 목록 (이미지 / 리스트 토글)
-- 카테고리 필터 (웹툰 / 영상) + 키워드 검색
-- 세로 스크롤 웹툰 뷰어 (lazy load, 이전·다음·맨위·맨아래 fab)
-- 좌측 사이드바: 연도 트리, 현재 회차 하이라이트
-- 데이터는 빌드 타임 정적 페치가 아닌 **런타임 API 프록시** — `/api/stories/list`, `/api/stories/detail/[id]` 를 거쳐 `tr.rhaon.co.kr/webb` 에서 가져옴 (30분 ISR)
+- **모바일 풍 통일 레이아웃**: `max-w-[480px]` 중앙 정렬, 데스크탑에서도
+  동일 폭으로 표시되고 양쪽은 다크 거터.
+- **세로 스크롤 웹툰 뷰어**: 다크 풀스크린, 탭 토글 상·하단 바, 자동
+  숨김(2.5s).
+- **읽기 진행률 자동 저장 (IndexedDB)**: 다시 들어가면 "이어서 읽는 중"
+  토스트와 함께 마지막 위치로 복원. 80% 지점에서 자동 "읽음" 마킹.
+- **수동 읽음 토글 + 진행률 인디케이터**: 메인 카드 우측 체크 버튼,
+  하단 2px 보라 프로그레스 바.
+- **회차 바텀시트**: 같은 연도의 회차 목록을 시트로 즉시 이동, 현재
+  회차 보라 강조, 읽음 회차 ✓ 표시.
+- **필터 + 검색**: 전체/웹툰/영상 + 안 읽음만 + 연도 chip,
+  제목·태그 디바운스 검색.
+- **밝기/확대 조절**: 50%–150% 슬라이더(localStorage), 1× / 1.2× / 1.5×
+  줌 토글.
+- **스와이프·키보드 회차 이동**: 좌우 스와이프, ←/→ /j/k 키.
+- **데이터**: 런타임 API 프록시 (`/api/stories/list`, `/api/stories/detail/[id]`)
+  로 `tr.rhaon.co.kr/webb` 를 30분 ISR 캐시. 빌드 재배포 없이 최신화.
+- 정렬은 공식 페이지 방식(연도 그룹 + 최신순) 그대로. 비-연도 그룹
+  ("캐릭터 스토리" 등)은 뒤로.
 
 ## Planned
-- 즐겨찾기 / 읽음 표시 (로컬 IndexedDB)
-- 이미지 확대 및 밝기 조절
-- 모바일 사이드바 제스처
+- PWA 설치 + 오프라인 캐시(읽은 회차만)
+- 데이터 export/import (IndexedDB JSON)
+- 시리즈 묶음 보기(예: "테일즈 아틀리에" 시리즈 한 화면)
 
 ## Design intent
-- 공식 페이지(https://tr.game.onstove.com/archive/trstory)와 사이드바·카드 그리드·"웹툰" 보라 배지·연도 헤딩 등의 픽셀 톤을 가깝게 따라가되, 코드는 독립 미러로 분리하여 tr-archive 와의 결합을 끊는다.
-- tr-archive 의 학자 페르소나(엘림스/R) 코멘트나 IndexedDB 의존성 등은 제거하여 **순수 뷰어**로만 동작.
+- 공식 라이브러리는 *데스크탑* 디자인을 모바일에서 그대로 보여주는데,
+  실제 사용자는 출퇴근·잠자기 전 휴대폰으로 한 손 감상이 대부분.
+- 그래서 사이드바 230px, 카드 그리드 3열 같은 데스크탑 관성은 모두
+  버리고, 한 손 thumb-reach 안에서 끝나는 흐름으로 재설계.
+- 그러나 색 팔레트·"웹툰" 보라 배지·연도 헤딩·Pretendard 등 *시각적
+  연속성*은 유지해서 공식에서 넘어온 사용자가 이질감을 느끼지 않도록.
+- IndexedDB 읽기 진행률은 웹툰 플랫폼(네이버·카카오) 관례를 차용 —
+  이 컨텐츠는 호흡이 길고 회차가 많아 "어디까지 봤더라"가 핵심.
 
 ## Non-goals
-- 캐릭터·맵·코스튬·확률 정보 등 tr-archive 의 나머지 도메인은 다루지 않음.
-- 비로그인 사용자만 대상. 계정·소셜 기능 없음.
-- 원본 이미지 호스팅을 대체하지 않음 — 모든 미디어는 `trimage.rhaon.co.kr` 직링.
+- 캐릭터·맵·코스튬·확률 정보 등 tr-archive 의 나머지 도메인은 다루지
+  않는다 (`tr-archive` 가 별도 존재).
+- 회원·계정·소셜 기능 없음. 진행률은 *기기 로컬*에만 남는다.
+- 원본 이미지 호스팅 대체 아님 — 모든 미디어는 `trimage.rhaon.co.kr` 직링.
+- 데스크탑 전용 와이드 레이아웃 없음 — 의도된 단일 풍.
 
 ## Redacted
 - 외부 인물·계정·내부 사례는 본 저장소에서 다루지 않는다.
 
 ## Stack
 - Next.js 16 (App Router) / React 19 / Tailwind CSS 4
-- TypeScript, Pretendard
+- TypeScript 5, Pretendard Variable
 
 ## Local dev
 ```bash
 npm install
 npm run dev
 ```
-서버는 기본적으로 `http://localhost:3000` 에서 뜬다. 첫 진입 시 30분 캐시 채우기 위해 약 1초 지연이 있을 수 있다.
+기본 `http://localhost:3000`. 첫 진입 시 API ISR 캐시 채우느라 약 1초 지연 가능.
+
+빌드 검증:
+```bash
+npm run typecheck && npm run lint && npm run build
+```
 
 ## Disclaimer
-- 본 프로젝트는 **비공식 미러**이며, 모든 콘텐츠 권리는 RHAON Entertainment 및 Blomics 에 있다.
-- 공식 페이지에서 직접 보기는: <https://tr.game.onstove.com/archive/trstory>
+- 본 프로젝트는 **비공식 미러**이며, 모든 콘텐츠 권리는 RHAON
+  Entertainment 및 Blomics 에 있다.
+- 공식 페이지에서 직접 보기: <https://tr.game.onstove.com/archive/trstory>
