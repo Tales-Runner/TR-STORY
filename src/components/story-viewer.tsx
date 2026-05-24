@@ -484,7 +484,7 @@ export function StoryViewer({
             onClick={goPrev}
             disabled={!hasPrev}
             aria-label="이전 화"
-            className={`lg:hidden rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
               hasPrev
                 ? "bg-white/5 text-white/75 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"
@@ -492,7 +492,7 @@ export function StoryViewer({
           >
             ← 이전
           </button>
-          <div className="flex items-center gap-1 lg:mx-auto">
+          <div className="flex items-center gap-1">
             {!hasVideo && (
               <button
                 onClick={() =>
@@ -512,7 +512,7 @@ export function StoryViewer({
             onClick={goNext}
             disabled={!hasNext}
             aria-label="다음 화"
-            className={`lg:hidden rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
               hasNext
                 ? "bg-white/5 text-white/75 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"
@@ -590,62 +590,16 @@ export function StoryViewer({
       {showHelp && <KeyboardHelp onClose={() => setShowHelp(false)} />}
       </div>
 
-      {/* Desktop-only gutter prev/next + help button — sits OUTSIDE the
-          mobile-width container so it occupies the viewport gutters. */}
-      <div className="hidden lg:flex pointer-events-none absolute inset-y-0 left-0 right-0 z-20 items-center justify-between">
-        <div className="pointer-events-auto pl-4">
-          {hasPrev ? (
-            <button
-              onClick={goPrev}
-              aria-label="이전 화"
-              title="이전 화 (←)"
-              className="grid place-items-center w-14 h-28 rounded-2xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
-            >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M15 18l-6-6 6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : (
-            <span className="block w-14 h-28" aria-hidden />
-          )}
-        </div>
-        <div className="pointer-events-auto pr-4 flex flex-col items-end gap-3">
-          {hasNext ? (
-            <button
-              onClick={goNext}
-              aria-label="다음 화"
-              title="다음 화 (→)"
-              className="grid place-items-center w-14 h-28 rounded-2xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
-            >
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M9 18l6-6-6-6"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </button>
-          ) : (
-            <span className="block w-14 h-28" aria-hidden />
-          )}
-          <button
-            onClick={() => setShowHelp(true)}
-            aria-label="키보드 단축키"
-            title="키보드 단축키 (?)"
-            className="grid place-items-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white text-sm font-bold"
-          >
-            ?
-          </button>
-        </div>
-      </div>
+      {/* Desktop-only help button in the right gutter. prev/next 는 하단
+          nav 에 이미 있으니 거터엔 두지 않는다 (이전에 중복 노출이었음). */}
+      <button
+        onClick={() => setShowHelp(true)}
+        aria-label="키보드 단축키"
+        title="키보드 단축키 (?)"
+        className="hidden lg:grid place-items-center absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white text-sm font-bold"
+      >
+        ?
+      </button>
 
     </div>
   );
