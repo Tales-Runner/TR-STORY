@@ -19,13 +19,34 @@ export async function generateMetadata({
   const { id } = await params;
   const detail = await fetchStoryDetail(Number(id)).catch(() => null);
   if (!detail) return { title: "TR Story" };
+  const tags = detail.hashTagSubject
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const description = `테일즈런너 ${tags.join(" · ")} ${detail.subject} (${detail.openYear} 공개). 모바일 친화 비공식 뷰어.`;
+  const canonical = `/stories/${detail.id}/`;
   return {
-    title: `${detail.subject} — TR Story`,
-    description: detail.hashTagSubject,
+    title: detail.subject,
+    description,
+    keywords: ["테일즈런너", "테런", ...tags, detail.subject],
+    alternates: { canonical },
     openGraph: {
-      title: detail.subject,
-      description: detail.hashTagSubject,
-      images: detail.thumbnail ? [{ url: detail.thumbnail }] : undefined,
+      type: "article",
+      title: `${detail.subject} — 테일즈런너`,
+      description,
+      url: canonical,
+      images: detail.thumbnail
+        ? [{ url: detail.thumbnail, alt: detail.subject }]
+        : undefined,
+      publishedTime: detail.openDt
+        ? `${detail.openDt.slice(0, 4)}-${detail.openDt.slice(4, 6)}-${detail.openDt.slice(6, 8)}`
+        : undefined,
+    },
+    twitter: {
+      card: detail.thumbnail ? "summary_large_image" : "summary",
+      title: `${detail.subject} — 테일즈런너`,
+      description,
+      images: detail.thumbnail ? [detail.thumbnail] : undefined,
     },
   };
 }

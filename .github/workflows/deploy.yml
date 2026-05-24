@@ -46,6 +46,7 @@ jobs:
       - name: Build (static export)
         env:
           NEXT_PUBLIC_BASE_PATH: /TR-STORY
+          NEXT_PUBLIC_SITE_URL: https://tales-runner.github.io/TR-STORY
         run: npm run build
 
       - uses: actions/configure-pages@v5
