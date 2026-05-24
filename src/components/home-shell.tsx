@@ -42,6 +42,17 @@ function groupByYear(stories: StoryListItem[]): YearGroup[] {
 
 type SortOrder = "desc" | "asc";
 
+const GENERIC_TAGS = new Set(["웹툰", "영상", ""]);
+
+/** hashTagSubject 의 첫 번째 비-제네릭 태그를 시리즈 키로 사용. */
+function seriesKey(story: StoryListItem): string | null {
+  for (const t of story.hashTagSubject.split(",")) {
+    const k = t.trim();
+    if (k && !GENERIC_TAGS.has(k)) return k;
+  }
+  return null;
+}
+
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const params = useSearchParams();
   const [q, setQ] = useState(params.get("q") ?? "");
@@ -55,6 +66,17 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const { readIds, progress, ready, toggleRead } = useReadStatus();
 
   const allGroups = useMemo(() => groupByYear(stories), [stories]);
+
+  // 시리즈별 총편수 — 모든 스토리 기준 (필터와 무관).
+  const seriesCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of stories) {
+      const k = seriesKey(s);
+      if (!k) continue;
+      map.set(k, (map.get(k) ?? 0) + 1);
+    }
+    return map;
+  }, [stories]);
 
   const filtered = useMemo(() => {
     let list = stories;
@@ -106,7 +128,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const yearChoices = allGroups.map((g) => g.label);
 
   return (
-    <div className="pb-24">
+    <div className="mx-auto w-full max-w-[1280px] pb-24">
       {/* Header */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[var(--color-border)]">
         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
@@ -264,22 +286,36 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         ) : (
           groups.map((g) => (
             <section key={g.label} className="mb-8">
-              <h2 className="mb-3 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
+              <h2 className="sticky top-[140px] z-20 -mx-4 mb-3 bg-white/95 backdrop-blur px-4 py-2 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
                 {g.label}
                 <span className="text-xs font-normal text-[var(--color-text-muted)]">
                   {g.items.length}편
                 </span>
               </h2>
-              <ul className="flex flex-col gap-3">
+              <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {g.items.map((s) => {
                   const read = readIds.has(s.id);
                   const prog = progress.get(s.id) ?? 0;
+                  const sk = seriesKey(s);
+                  const seriesTotal = sk ? seriesCounts.get(sk) ?? 0 : 0;
+                  const seriesRead = sk
+                    ? stories.reduce(
+                        (acc, st) =>
+                          seriesKey(st) === sk && readIds.has(st.id)
+                            ? acc + 1
+                            : acc,
+                        0
+                      )
+                    : 0;
                   return (
                     <li key={s.id}>
                       <StoryRow
                         story={s}
                         read={read}
                         progress={prog}
+                        seriesLabel={sk}
+                        seriesRead={seriesRead}
+                        seriesTotal={seriesTotal}
                         onToggleRead={(e) => handleToggleRead(e, s.id)}
                       />
                     </li>
@@ -366,22 +402,31 @@ function StoryRow({
   story,
   read,
   progress,
+  seriesLabel,
+  seriesRead,
+  seriesTotal,
   onToggleRead,
 }: {
   story: StoryListItem;
   read: boolean;
   progress: number;
+  seriesLabel: string | null;
+  seriesRead: number;
+  seriesTotal: number;
   onToggleRead: (e: React.MouseEvent) => void;
 }) {
   const label = STORY_CATEGORY_LABEL[story.category] ?? "기타";
   const tags = parseHashTags(story.hashTagSubject).filter(
     (t) => t !== "웹툰" && t !== "영상"
   );
+  const showSeriesProgress =
+    seriesLabel && seriesTotal >= 2 && seriesRead > 0;
   return (
     <Link
       href={`/stories/${story.id}`}
-      className={`relative flex gap-3 rounded-2xl border bg-white overflow-hidden transition active:scale-[0.99] ${
-        read ? "border-[var(--color-border)]" : "border-[var(--color-border)]"
+      prefetch
+      className={`relative flex gap-3 rounded-2xl border border-[var(--color-border)] bg-white overflow-hidden transition active:scale-[0.99] hover:border-[var(--color-brand)]/40 hover:shadow-sm ${
+        read ? "opacity-70" : ""
       }`}
     >
       {/* Thumbnail */}
@@ -392,7 +437,9 @@ function StoryRow({
             src={story.thumbnail}
             alt=""
             loading="lazy"
-            className={`w-full h-full object-cover ${read ? "opacity-60" : ""}`}
+            className={`w-full h-full object-cover ${
+              read ? "grayscale opacity-50" : ""
+            }`}
           />
         )}
         <span
@@ -419,6 +466,11 @@ function StoryRow({
         <p className="text-[11px] text-[var(--color-text-muted)] truncate">
           {tags.join(", ") || " "}
         </p>
+        {showSeriesProgress && (
+          <p className="mt-1 text-[10px] text-[var(--color-brand-strong)]">
+            {seriesLabel} {seriesRead}/{seriesTotal}
+          </p>
+        )}
       </div>
 
       {/* Read toggle */}

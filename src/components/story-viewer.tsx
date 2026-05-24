@@ -11,6 +11,7 @@ import { useSwipeNav } from "@/lib/use-swipe-nav";
 import { db } from "@/lib/db";
 import { WebtoonImage } from "./webtoon-image";
 import { EpisodeDrawer } from "./episode-drawer";
+import { KeyboardHelp } from "./keyboard-help";
 import { useScrollRestore } from "./use-scroll-restore";
 
 const BRIGHTNESS_KEY = "tr-story-brightness";
@@ -20,10 +21,12 @@ export function StoryViewer({
   story,
   siblings,
   yearLabel,
+  nextPreloadImages,
 }: {
   story: StoryDetail;
   siblings: StoryListItem[];
   yearLabel: string;
+  nextPreloadImages?: string[];
 }) {
   const router = useRouter();
   const idx = siblings.findIndex((s) => s.id === story.id);
@@ -50,6 +53,7 @@ export function StoryViewer({
   const [viewerToast, setViewerToast] = useState<string | null>(null);
   const [isRead, setIsRead] = useState(false);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
+  const [showHelp, setShowHelp] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -150,13 +154,44 @@ export function StoryViewer({
   useDocumentKeydown(
     useCallback(
       (e: KeyboardEvent) => {
-        if (e.key === "Escape") goClose();
-        if ((e.key === "ArrowLeft" || e.key === "j") && hasPrev) goPrev();
-        if ((e.key === "ArrowRight" || e.key === "k") && hasNext) goNext();
+        // Don't capture keys while user is typing in a form control.
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (e.key === "Escape") {
+          if (showHelp) setShowHelp(false);
+          else if (showDrawer) setShowDrawer(false);
+          else goClose();
+        } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+          setShowHelp((v) => !v);
+        } else if (
+          (e.key === "ArrowLeft" || e.key === "j") &&
+          hasPrev &&
+          !showHelp &&
+          !showDrawer
+        ) {
+          goPrev();
+        } else if (
+          (e.key === "ArrowRight" || e.key === "k") &&
+          hasNext &&
+          !showHelp &&
+          !showDrawer
+        ) {
+          goNext();
+        }
       },
-      [goClose, goPrev, goNext, hasPrev, hasNext]
+      [goClose, goPrev, goNext, hasPrev, hasNext, showHelp, showDrawer]
     )
   );
+
+  // Prefetch the next story's first image so continue-reading feels instant.
+  useEffect(() => {
+    if (!nextPreloadImages?.length) return;
+    for (const url of nextPreloadImages) {
+      if (!url) continue;
+      const preload = new Image();
+      preload.src = url;
+    }
+  }, [nextPreloadImages]);
 
   const handleScroll = useCallback(() => {
     restoreHandleScroll();
@@ -200,8 +235,8 @@ export function StoryViewer({
       aria-labelledby={titleId}
       className="fixed inset-0 z-[70] flex flex-col bg-black"
     >
-      {/* Outer dark gutter; inner shell is mobile-width */}
-      <div className="absolute inset-0 mx-auto max-w-[480px] flex flex-col bg-[#0a0612] shadow-2xl">
+      {/* Outer dark gutter; inner shell grows on larger viewports */}
+      <div className="absolute inset-0 mx-auto max-w-[480px] md:max-w-[560px] lg:max-w-[720px] flex flex-col bg-[#0a0612] shadow-2xl">
       {/* Top bar */}
       <div
         className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 transition-all duration-200 ${barClassTop}`}
@@ -458,6 +493,66 @@ export function StoryViewer({
         />
       )}
 
+      {showHelp && <KeyboardHelp onClose={() => setShowHelp(false)} />}
+      </div>
+
+      {/* Desktop-only gutter prev/next + help button — sits OUTSIDE the
+          mobile-width container so it occupies the viewport gutters. */}
+      <div className="hidden lg:flex pointer-events-none absolute inset-y-0 left-0 right-0 z-20 items-center justify-between">
+        <div className="pointer-events-auto pl-4">
+          {hasPrev ? (
+            <button
+              onClick={goPrev}
+              aria-label="이전 화"
+              title="이전 화 (←)"
+              className="grid place-items-center w-14 h-28 rounded-2xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M15 18l-6-6 6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : (
+            <span className="block w-14 h-28" aria-hidden />
+          )}
+        </div>
+        <div className="pointer-events-auto pr-4 flex flex-col items-end gap-3">
+          {hasNext ? (
+            <button
+              onClick={goNext}
+              aria-label="다음 화"
+              title="다음 화 (→)"
+              className="grid place-items-center w-14 h-28 rounded-2xl bg-white/5 hover:bg-white/15 text-white/70 hover:text-white transition-colors"
+            >
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M9 18l6-6-6-6"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : (
+            <span className="block w-14 h-28" aria-hidden />
+          )}
+          <button
+            onClick={() => setShowHelp(true)}
+            aria-label="키보드 단축키"
+            title="키보드 단축키 (?)"
+            className="grid place-items-center w-10 h-10 rounded-full bg-white/5 hover:bg-white/15 text-white/60 hover:text-white text-sm font-bold"
+          >
+            ?
+          </button>
+        </div>
+      </div>
+
       {showSettings && (
         <div
           className="fixed inset-0 z-[80]"
@@ -501,7 +596,6 @@ export function StoryViewer({
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }

@@ -51,11 +51,25 @@ export default async function StoryPage({
     .slice()
     .sort((a, b) => a.openDt.localeCompare(b.openDt));
 
+  // Next 회차의 첫 1~2 패널을 prefetch 후보로 전달 (이어 읽기 체감 속도용).
+  const idx = siblings.findIndex((s) => s.id === n);
+  const nextSibling =
+    idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null;
+  const nextDetail = nextSibling
+    ? await fetchStoryDetail(nextSibling.id).catch(() => null)
+    : null;
+  const nextPreloadImages =
+    nextDetail?.images
+      .slice(0, 2)
+      .map((i) => i.imageUrl)
+      .filter(Boolean) ?? [];
+
   return (
     <StoryViewer
       story={detail}
       siblings={siblings}
       yearLabel={detail.openYear}
+      nextPreloadImages={nextPreloadImages}
     />
   );
 }
