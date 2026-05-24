@@ -153,6 +153,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   }, [stories, cat, yearFilter, seriesFilter, q, unreadOnly, readIds, ready]);
 
   // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
+  // "캐릭터 스토리" 는 단편 모음(서로 다른 캐릭터별 1~3편) 이라 다른 시리즈와
+  // 같은 축으로 정렬하면 어색하다 — 항상 맨 뒤 sentinel 로 강제.
   const seriesChoices = useMemo(() => {
     const latest = new Map<string, string>();
     for (const s of stories) {
@@ -162,7 +164,11 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
       if (!cur || s.openDt > cur) latest.set(k, s.openDt);
     }
     return [...latest.entries()]
-      .sort((a, b) => b[1].localeCompare(a[1]))
+      .sort((a, b) => {
+        if (a[0] === "캐릭터 스토리") return 1;
+        if (b[0] === "캐릭터 스토리") return -1;
+        return b[1].localeCompare(a[1]);
+      })
       .map(([label]) => label);
   }, [stories]);
 
