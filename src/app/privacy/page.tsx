@@ -1,18 +1,40 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchStoryList } from "@/lib/api";
 
-export const metadata: Metadata = {
-  title: "개인정보 처리 안내",
-  description:
-    "TR Story 는 사용자 계정 · 분석 · 쿠키 · 서버 로그 없이 동작합니다. 읽음 표시 · 즐겨찾기 · 진행률은 모두 사용자 브라우저에만 저장되며 외부로 전송되지 않습니다.",
-  alternates: { canonical: "/privacy/" },
-  openGraph: {
-    title: "개인정보 처리 안내 — TR Story",
+export async function generateMetadata(): Promise<Metadata> {
+  // og:image 는 홈과 동일하게 최신 회차 thumbnail 을 채워, X/카톡 카드
+  // 미리보기에 큰 이미지가 뜨도록. Next.js metadata 가 부모 layout 의
+  // openGraph 객체를 통째로 교체하기 때문에 명시적으로 image 를 채워야
+  // 카드에 이미지가 노출된다.
+  const list = await fetchStoryList().catch(() => []);
+  const latest = list
+    .slice()
+    .sort((a, b) => b.openDt.localeCompare(a.openDt))[0];
+  const image = latest?.thumbnail;
+  return {
+    title: "개인정보 처리 안내",
     description:
-      "TR Story 의 데이터 흐름과 사용자 정보 보호 정책을 간단히 정리한 안내문.",
-    url: "/privacy/",
-  },
-};
+      "TR Story 는 사용자 계정 · 분석 · 쿠키 · 서버 로그 없이 동작합니다. 읽음 표시 · 즐겨찾기 · 진행률은 모두 사용자 브라우저에만 저장되며 외부로 전송되지 않습니다.",
+    alternates: { canonical: "/privacy/" },
+    openGraph: {
+      title: "개인정보 처리 안내 — TR Story",
+      description:
+        "사용자 데이터는 본인 브라우저에만 저장됩니다. 계정·추적·광고·서버 로그 없이 동작하는 정적 사이트.",
+      url: "/privacy/",
+      images: image
+        ? [{ url: image, width: 560, height: 316, alt: "TR Story" }]
+        : undefined,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "개인정보 처리 안내 — TR Story",
+      description:
+        "사용자 데이터는 본인 브라우저에만 저장됩니다. 계정·추적·광고 없음.",
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
 export default function PrivacyPage() {
   return (
