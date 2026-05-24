@@ -1,14 +1,16 @@
 name: Deploy to GitHub Pages
 
 on:
-  # 일 1회 자동 빌드 — 02:00 UTC (KST 11:00)
-  schedule:
-    - cron: "0 2 * * *"
   # 코드 push 시 즉시 빌드
   push:
     branches: [main]
-  # 수동 trigger ("Run workflow" 버튼)
+  # 수동 trigger ("Run workflow" 버튼) — 데이터 새로고침 시도용
   workflow_dispatch:
+  # NOTE: 일 1회 cron 은 의도적으로 비활성. tr.rhaon.co.kr 가 GitHub
+  # runner IP 를 차단하기 때문에 CI 에서 데이터 갱신이 불가능하고,
+  # 따라서 cron 으로 변화 없는 stories.json 을 매일 재배포할 가치 없음.
+  # 새 회차 반영은 로컬에서:
+  #   npm run fetch-data && git commit -am "data: refresh" && git push
 
 permissions:
   contents: read
@@ -33,8 +35,13 @@ jobs:
 
       - run: npm ci
 
-      - name: Fetch stories from upstream
-        run: npm run fetch-data
+      - name: Try to refresh stories from upstream
+        # tr.rhaon.co.kr 가 GitHub-hosted runner IP 대역을 403 으로 막기
+        # 때문에, 페치는 best-effort 로만 시도하고 실패 시 커밋된
+        # src/data/stories.json snapshot 으로 빌드한다.
+        # 데이터 갱신은 로컬에서 `npm run fetch-data && git push` 흐름.
+        run: npm run fetch-data || echo "::warning::fetch-data failed; building with committed snapshot"
+        continue-on-error: true
 
       - name: Build (static export)
         env:

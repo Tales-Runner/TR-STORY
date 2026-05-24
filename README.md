@@ -71,17 +71,31 @@ npm run typecheck && npm run lint && npm run build
 ```
 
 ## Deploy (GitHub Pages)
-`.github/workflows/deploy.yml` 가 다음 3 가지 트리거로 동작:
-- **push** to `main` — 코드 변경 즉시 배포
-- **schedule** 매일 02:00 UTC (KST 11:00) — 새 회차 자동 반영
-- **workflow_dispatch** — Actions 탭에서 수동 trigger
+`.github/workflows/deploy.yml` 가 다음 두 가지 트리거로 동작:
+- **push** to `main` — 코드/데이터 변경 즉시 배포
+- **workflow_dispatch** — Actions 탭에서 수동 trigger (페치 재시도용)
 
-빌드 단계에서 `npm run fetch-data` 가 항상 최신 데이터를 끌어오고
-`NEXT_PUBLIC_BASE_PATH=/TR-STORY` 로 `output: "export"` 빌드. 결과물
-`out/` 을 `actions/deploy-pages` 가 GitHub Pages 환경에 배포.
+빌드 단계에서 `npm run fetch-data` 는 **best-effort** 로만 시도하고,
+실패하면 커밋된 `src/data/stories.json` snapshot 으로 그대로 빌드 진행
+(`continue-on-error: true`). 그 다음 `NEXT_PUBLIC_BASE_PATH=/TR-STORY` 로
+`output: "export"` 빌드, `out/` 을 `actions/deploy-pages` 가 GitHub Pages
+에 배포.
 
 저장소 설정에서 **Settings → Pages → Source: GitHub Actions** 한 번만
-켜주면 된다.
+켜주면 된다 (이미 gh api 로 활성화됨).
+
+### 왜 cron 이 없는가
+`tr.rhaon.co.kr` 가 GitHub-hosted runner IP 대역을 403 Forbidden 으로
+차단한다. 따라서 CI 안에서 새 데이터를 끌어올 수 없다 (tr-archive 가
+Vercel 배포에서 분기별 수동 재배포 부담을 겪는 것도 같은 원인일 가능성
+이 매우 높다). 새 회차가 올라오면 **로컬에서** 데이터만 갱신:
+
+```bash
+npm run fetch-data
+git commit -am "data: refresh stories"
+git push
+```
+push 가 곧 배포 트리거이므로 별도 작업 없이 사이트에 반영된다.
 
 ## Disclaimer
 - 본 프로젝트는 **비공식 미러**이며, 모든 콘텐츠 권리는 RHAON
