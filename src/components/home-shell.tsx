@@ -14,7 +14,7 @@ import { STORY_CATEGORY, STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { seriesLabel } from "@/lib/series";
+import { seriesLabel, SERIES_REPRESENTATIVE_ID } from "@/lib/series";
 import { BottomNav } from "./bottom-nav";
 import { FilterSheet } from "./filter-sheet";
 
@@ -210,6 +210,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         b.openDt.localeCompare(a.openDt)
       );
       const latest = sorted[0];
+      // SERIES_REPRESENTATIVE_ID 에 강제 지정된 회차가 있고 현재 필터 결과 안에
+      // 포함되어 있다면 그 회차의 썸네일을 시리즈 대표로 사용 (캐릭터 스토리 등).
+      const overrideId = SERIES_REPRESENTATIVE_ID[label];
+      const rep =
+        (overrideId !== undefined &&
+          sorted.find((s) => s.id === overrideId)) ||
+        latest;
       const readInFiltered = sorted.reduce(
         (acc, s) => (readIds.has(s.id) ? acc + 1 : acc),
         0
@@ -220,8 +227,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         totalCount: seriesCounts.get(label) ?? sorted.length,
         readCount: readInFiltered,
         latestDt: latest.openDt,
-        latestThumbnail: latest.thumbnail,
-        sampleStory: latest,
+        latestThumbnail: rep.thumbnail,
+        sampleStory: rep,
       });
     }
     result.sort((a, b) => {

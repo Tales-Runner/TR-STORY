@@ -44,6 +44,18 @@ export const SERIES_TAG_TO_LABEL: Record<string, string> = {
   "카오스제너레이션": "카오스 제너레이션",
 };
 
+/**
+ * 시리즈 카드의 대표 이미지로 강제 지정할 회차 id 매핑.
+ *
+ * 기본 동작은 "그 시리즈의 가장 최신 회차 썸네일"을 자동 사용하지만, "캐릭터
+ * 스토리"처럼 회차들이 서로 무관한 단편 모음인 시리즈는 최신 회차 한 명을
+ * 시리즈 전체의 얼굴로 쓰기 어색함. 대표성 있는 회차 id 를 여기에 박아 둠.
+ * (해당 id 가 현재 필터 결과에 없으면 그냥 최신 fallback.)
+ */
+export const SERIES_REPRESENTATIVE_ID: Record<string, number> = {
+  "캐릭터 스토리": 238, // 7th 마키
+};
+
 export function rawSeriesKey(story: StoryListItem): string | null {
   // "캐릭터 스토리" 묶음은 hashTag 가 아니라 openYear 로 판단.
   if (story.openYear === "캐릭터 스토리") return "캐릭터 스토리";
