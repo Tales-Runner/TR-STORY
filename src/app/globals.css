@@ -78,6 +78,57 @@ body {
   animation: fade-in 0.3s ease-out both;
 }
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* 첫 진입 시 한 번만 노출되는 "탭하면 메뉴" 힌트 — 짧게 떴다가 사라짐. */
+@keyframes tap-hint {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.animate-tap-hint {
+  animation: tap-hint 2.2s ease-out both;
+}
+
 /* Hide native scrollbar entirely — scroll position is conveyed by the
    bottom progress bar inside the viewer instead. */
 .no-scrollbar {

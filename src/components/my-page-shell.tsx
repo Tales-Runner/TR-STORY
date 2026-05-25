@@ -297,26 +297,46 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
               <Empty text="80%까지 읽은 회차가 자동으로 여기 기록됩니다." />
             ) : (
               <ul className="flex flex-col gap-4">
-                {readTimeline.map(({ date, items }) => (
-                  <li key={date}>
-                    <h3 className="mb-2 text-[13px] font-bold text-[var(--color-text-soft)]">
-                      {date}
-                      <span className="ml-1.5 text-[11px] font-normal text-[var(--color-text-muted)]">
-                        {items.length}편
-                      </span>
-                    </h3>
-                    <ul className="flex flex-col gap-1.5">
-                      {items.map(({ story, at }) => (
-                        <li key={`tl-${story.id}-${at}`}>
-                          <SmallCard
-                            story={story}
-                            timestampLabel={formatTimestamp(at).slice(11)}
-                          />
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
+                {(() => {
+                  const today = (() => {
+                    const d = new Date();
+                    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
+                  })();
+                  return readTimeline.map(({ date, items }) => {
+                    const isToday = date === today;
+                    return (
+                      <li key={date}>
+                        <h3
+                          className={`mb-2 text-[13px] font-bold ${
+                            isToday
+                              ? "text-[var(--color-brand-strong)]"
+                              : "text-[var(--color-text-soft)]"
+                          }`}
+                        >
+                          {date}
+                          {isToday && (
+                            <span className="ml-1.5 inline-flex items-center rounded-full bg-[var(--color-brand-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-brand-strong)]">
+                              오늘
+                            </span>
+                          )}
+                          <span className="ml-1.5 text-[11px] font-normal text-[var(--color-text-muted)]">
+                            {items.length}편
+                          </span>
+                        </h3>
+                        <ul className="flex flex-col gap-1.5">
+                          {items.map(({ story, at }) => (
+                            <li key={`tl-${story.id}-${at}`}>
+                              <SmallCard
+                                story={story}
+                                timestampLabel={formatTimestamp(at).slice(11)}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </li>
+                    );
+                  });
+                })()}
               </ul>
             )}
           </Section>

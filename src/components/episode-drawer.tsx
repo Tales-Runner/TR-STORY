@@ -53,7 +53,7 @@ export function EpisodeDrawer({
     >
       <div className="absolute inset-0 bg-black/60 animate-fade-in" />
       <div
-        className="absolute bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl bg-[#13101f] border-t border-white/10 overflow-hidden"
+        className="absolute bottom-0 left-0 right-0 max-h-[70vh] rounded-t-2xl bg-[#13101f] border-t border-white/10 overflow-hidden animate-slide-up"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         onClick={(e) => e.stopPropagation()}
       >

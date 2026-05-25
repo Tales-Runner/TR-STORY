@@ -40,6 +40,9 @@ export function StoryViewer({
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [readIds, setReadIds] = useState<Set<number>>(new Set());
   const [showHelp, setShowHelp] = useState(false);
+  // 첫 진입 시 nav 가 자동 숨김되는 순간, 화면 어디나 탭하면 다시 떠오른다는
+  // 힌트를 짧게 표시. localStorage 로 한 번만 노출.
+  const [tapHint, setTapHint] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
@@ -117,7 +120,17 @@ export function StoryViewer({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBarVisible(true);
-    autoHideTimerRef.current = setTimeout(() => setBarVisible(false), 2500);
+    autoHideTimerRef.current = setTimeout(() => {
+      setBarVisible(false);
+      // 처음 자동 숨김되는 순간, 한 번만 "탭하면 메뉴" 힌트 노출.
+      try {
+        if (localStorage.getItem("tr-story-viewer-tap-hint") !== "1") {
+          setTapHint(true);
+          localStorage.setItem("tr-story-viewer-tap-hint", "1");
+          setTimeout(() => setTapHint(false), 2200);
+        }
+      } catch {}
+    }, 2500);
     return () => clearTimeout(autoHideTimerRef.current);
   }, [story.id]);
 
@@ -132,6 +145,16 @@ export function StoryViewer({
   }, []);
 
   const [resumePercent, setResumePercent] = useState<number | null>(null);
+  const resumeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // 사용자가 직접 다루지 않아도 4초 후 자동 사라짐 — 노출은 충분히 했고
+  // 본문 위에 띄워둔 채로 두면 시각 방해.
+  useEffect(() => {
+    if (resumePercent === null) return;
+    clearTimeout(resumeTimerRef.current);
+    resumeTimerRef.current = setTimeout(() => setResumePercent(null), 4000);
+    return () => clearTimeout(resumeTimerRef.current);
+  }, [resumePercent]);
 
   // story.id 가 바뀌면 옛 resume prompt 도 초기화. useScrollRestore 가
   // 새 회차에서 진행률이 있다면 다시 onResumeFromPercent 호출함.
@@ -143,6 +166,7 @@ export function StoryViewer({
   const handleResumeReset = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     setResumePercent(null);
+    clearTimeout(resumeTimerRef.current);
   }, []);
 
   const { scrollProgress, handleScroll: restoreHandleScroll } =
@@ -278,9 +302,17 @@ export function StoryViewer({
           </svg>
         </button>
         <div className="min-w-0 flex-1 px-2">
+          {/* 스크롤 진행률에 따라 타이틀 페이드 — 첫 진입 시 또렷, 본문 진입
+              후엔 ~40% 까지 부드럽게 흐려져 본문 몰입을 덜 방해. 사용자가
+              bar 를 살릴 때(barVisible) 보이는 상태만 변경되므로 항상 정보
+              접근 가능. */}
           <h2
             id={titleId}
-            className="text-sm font-bold text-white/95 truncate text-center"
+            className="text-sm font-bold truncate text-center transition-opacity duration-300"
+            style={{
+              opacity: Math.max(0.4, 1 - scrollProgress * 1.2),
+              color: "rgba(255,255,255,0.95)",
+            }}
           >
             {story.subject}
           </h2>
@@ -464,29 +496,26 @@ export function StoryViewer({
             </svg>
           </button>
         )}
-        <div className="flex items-center justify-between px-2 pb-2">
+        <div className="flex items-center justify-between px-2 pb-1.5">
           <button
             onClick={goPrev}
             disabled={!hasPrev}
             aria-label="이전 화"
-            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-[13px] min-h-[40px] transition-colors ${
               hasPrev
-                ? "bg-white/5 text-white/75 hover:bg-white/10"
+                ? "text-white/80 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"
             }`}
           >
             ← 이전
           </button>
-          <span className="text-[10px] text-white/35 tabular-nums w-9 text-center">
-            {Math.round(scrollProgress * 100)}%
-          </span>
           <button
             onClick={goNext}
             disabled={!hasNext}
             aria-label="다음 화"
-            className={`rounded-lg px-3 py-2.5 text-sm min-h-[44px] transition-colors ${
+            className={`rounded-lg px-3 py-1.5 text-[13px] min-h-[40px] transition-colors ${
               hasNext
-                ? "bg-white/5 text-white/75 hover:bg-white/10"
+                ? "text-white/80 hover:bg-white/10"
                 : "text-white/15 cursor-not-allowed"
             }`}
           >
@@ -503,9 +532,20 @@ export function StoryViewer({
         </div>
       )}
 
+      {tapHint && (
+        <div
+          className="fixed inset-x-0 bottom-24 z-[78] flex justify-center pointer-events-none"
+          aria-hidden
+        >
+          <div className="rounded-full bg-white/10 backdrop-blur-md px-4 py-2 text-[12px] text-white/85 animate-tap-hint">
+            화면을 탭하면 메뉴가 다시 떠요
+          </div>
+        </div>
+      )}
+
       {resumePercent !== null && (
         <div className="fixed top-16 left-0 right-0 z-[75] flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 text-sm text-white/85 shadow-lg animate-fade-in">
+          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 text-sm text-white/85 shadow-lg animate-fade-in-up">
             <svg
               width="14"
               height="14"
