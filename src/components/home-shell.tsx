@@ -664,6 +664,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                       seriesLabel={sk}
                       seriesRead={seriesRead}
                       seriesTotal={seriesTotal}
+                      hideSeriesProgress={seriesFilter !== "all"}
                       onToggleBookmark={(e) =>
                         handleToggleBookmark(e, s.id)
                       }
@@ -734,6 +735,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                         seriesLabel={sk}
                         seriesRead={seriesRead}
                         seriesTotal={seriesTotal}
+                        hideSeriesProgress={seriesFilter !== "all"}
                         onToggleBookmark={(e) =>
                           handleToggleBookmark(e, s.id)
                         }
@@ -1045,6 +1047,7 @@ function StoryRow({
   seriesLabel,
   seriesRead,
   seriesTotal,
+  hideSeriesProgress,
   onToggleBookmark,
   onToggleFavorite,
 }: {
@@ -1058,6 +1061,9 @@ function StoryRow({
   seriesLabel: string | null;
   seriesRead: number;
   seriesTotal: number;
+  /** 부모 리스트가 이미 한 시리즈로 필터링된 경우 row 마다 같은 진행률이
+   *  반복돼 노이즈 — 끄기 위해 true 전달. */
+  hideSeriesProgress?: boolean;
   onToggleBookmark: (e: React.MouseEvent) => void;
   onToggleFavorite: (e: React.MouseEvent) => void;
 }) {
@@ -1066,7 +1072,10 @@ function StoryRow({
     (t) => t !== "웹툰" && t !== "영상"
   );
   const showSeriesProgress =
-    seriesLabel && seriesTotal >= 2 && seriesRead > 0;
+    !hideSeriesProgress &&
+    seriesLabel &&
+    seriesTotal >= 2 &&
+    seriesRead > 0;
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
   // 이 미러에 패널 이미지가 없으면 (영상이 외부 호스트로만 제공되거나 데이터에
   // 누락) 내부 뷰어로 보내봤자 빈 화면이라 의미가 없음 — 공식 페이지로 새창 폴백.
