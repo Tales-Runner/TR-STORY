@@ -62,12 +62,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // client-side router wasn't ready yet. Read query params once in an
   // effect instead.
   const [q, setQ] = useState("");
-  const [cat, setCat] = useState("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [favoriteOnly, setFavoriteOnly] = useState(false);
-  // 진행 중인 회차만 (스크롤 진행률 0.02~0.95 + 미완독). 즐겨찾기와는 독립.
+  // 진행 중인 회차만 (스크롤 진행률 0.02~0.95 + 미완독).
   const [continueOnly, setContinueOnly] = useState(false);
   // 책갈피 표시한 회차만.
   const [bookmarkOnly, setBookmarkOnly] = useState(false);
@@ -103,14 +101,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (typeof window === "undefined") return;
     const sp = new URLSearchParams(window.location.search);
     const qParam = sp.get("q");
-    const catParam = sp.get("cat");
     const yearParam = sp.get("year");
     const seriesParam = sp.get("series");
     // Loading URL query is an external-state sync at mount, not derived
     // state; suppress the overzealous in-effect-setState rule here.
     /* eslint-disable react-hooks/set-state-in-effect */
     if (qParam !== null) setQ(qParam);
-    if (catParam !== null) setCat(catParam);
     if (yearParam !== null) setYearFilter(yearParam);
     if (seriesParam !== null) setSeriesFilter(seriesParam);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -145,10 +141,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const filtered = useMemo(() => {
     let list = stories;
-    if (cat !== "all") {
-      const c = Number(cat);
-      list = list.filter((s) => s.category === c);
-    }
     if (yearFilter !== "all") {
       list = list.filter((s) => s.openYear === yearFilter);
     }
@@ -166,9 +158,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (unreadOnly && ready) {
       list = list.filter((s) => !readIds.has(s.id));
     }
-    if (favoriteOnly && ready) {
-      list = list.filter((s) => favoriteIds.has(s.id));
-    }
     if (continueOnly && ready) {
       list = list.filter((s) => {
         const p = progress.get(s.id) ?? 0;
@@ -181,16 +170,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return list;
   }, [
     stories,
-    cat,
     yearFilter,
     seriesFilter,
     debouncedQ,
     unreadOnly,
-    favoriteOnly,
     continueOnly,
     bookmarkOnly,
     readIds,
-    favoriteIds,
     bookmarkIds,
     progress,
     ready,
@@ -266,7 +252,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 이전 필터 카드들이 잠깐 깜빡임).
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [prevFilterKey, setPrevFilterKey] = useState("");
-  const filterKey = `${cat}|${yearFilter}|${seriesFilter}|${debouncedQ}|${unreadOnly}|${favoriteOnly}|${continueOnly}|${bookmarkOnly}|${sort}`;
+  const filterKey = `${yearFilter}|${seriesFilter}|${debouncedQ}|${unreadOnly}|${continueOnly}|${bookmarkOnly}|${sort}`;
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(PAGE_SIZE);
@@ -311,11 +297,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 어떤 필터/검색도 적용 안 됐을 때만 "이어 읽기" 보여줌.
   const isFreshList =
     !q.trim() &&
-    cat === "all" &&
     yearFilter === "all" &&
     seriesFilter === "all" &&
     !unreadOnly &&
-    !favoriteOnly &&
     !continueOnly &&
     !bookmarkOnly;
 
@@ -476,35 +460,95 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </Link>
         </div>
 
-        {/* 윗줄: 연도 / 시리즈 selects + 상태 토글(안 읽음/즐겨찾기/이어읽기/
-            북마크) + 정렬. 가로 스크롤. 4 개 상태 토글은 서로 배타 — 한 시점에
-            한 가지 필터만. */}
-        <div className="px-3 pb-2 overflow-x-auto no-scrollbar">
+        {/* 윗줄: 연도 / 시리즈 selects (좌측) + 정렬 (우측). */}
+        <div className="flex items-center gap-2 px-3 pb-2">
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 min-w-max">
+              <FilterSelect
+                value={yearFilter}
+                onChange={setYearFilter}
+                ariaLabel="연도"
+                options={[
+                  { value: "all", label: "전체 연도" },
+                  ...yearChoices.map((y) => ({ value: y, label: y })),
+                ]}
+              />
+              <FilterSelect
+                value={seriesFilter}
+                onChange={handleSeriesFilter}
+                ariaLabel="시리즈"
+                options={[
+                  { value: "all", label: "전체 시리즈" },
+                  ...seriesChoices.map((s) => ({ value: s, label: s })),
+                ]}
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
+            aria-pressed={sort === "asc"}
+            title={
+              sort === "desc"
+                ? "최신순 (눌러서 과거순)"
+                : "과거순 (눌러서 최신순)"
+            }
+            className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[32px]"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              {sort === "desc" ? (
+                <path
+                  d="M8 3v10M4 9l4 4 4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : (
+                <path
+                  d="M8 13V3M4 7l4-4 4 4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            {sort === "desc" ? "최신순" : "과거순"}
+          </button>
+        </div>
+
+        {/* 아랫줄: 상태 토글 — 이어 읽기 / 안 읽음 / 북마크. 셋은 서로 배타. */}
+        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1.5 min-w-max">
-            <FilterSelect
-              value={yearFilter}
-              onChange={setYearFilter}
-              ariaLabel="연도"
-              options={[
-                { value: "all", label: "전체 연도" },
-                ...yearChoices.map((y) => ({ value: y, label: y })),
-              ]}
-            />
-            <FilterSelect
-              value={seriesFilter}
-              onChange={handleSeriesFilter}
-              ariaLabel="시리즈"
-              options={[
-                { value: "all", label: "전체 시리즈" },
-                ...seriesChoices.map((s) => ({ value: s, label: s })),
-              ]}
-            />
+            <StatusToggle
+              active={continueOnly}
+              onClick={() => {
+                setContinueOnly((v) => !v);
+                if (!continueOnly) {
+                  setUnreadOnly(false);
+                  setBookmarkOnly(false);
+                }
+              }}
+              accent="dark"
+              icon={
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M2 6c4-1 6 0 10 2 4-2 6-3 10-2v13c-4-1-6 0-10 2-4-2-6-3-10-2V6zM12 8v13"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
+            >
+              이어 읽기
+            </StatusToggle>
             <StatusToggle
               active={unreadOnly}
               onClick={() => {
                 setUnreadOnly((v) => !v);
                 if (!unreadOnly) {
-                  setFavoriteOnly(false);
                   setContinueOnly(false);
                   setBookmarkOnly(false);
                 }
@@ -538,65 +582,11 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               안 읽음
             </StatusToggle>
             <StatusToggle
-              active={favoriteOnly}
-              onClick={() => {
-                setFavoriteOnly((v) => !v);
-                if (!favoriteOnly) {
-                  setUnreadOnly(false);
-                  setContinueOnly(false);
-                  setBookmarkOnly(false);
-                }
-              }}
-              accent="amber"
-              icon={
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill={favoriteOnly ? "currentColor" : "none"}
-                >
-                  <path
-                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              }
-            >
-              즐겨찾기
-            </StatusToggle>
-            <StatusToggle
-              active={continueOnly}
-              onClick={() => {
-                setContinueOnly((v) => !v);
-                if (!continueOnly) {
-                  setUnreadOnly(false);
-                  setFavoriteOnly(false);
-                  setBookmarkOnly(false);
-                }
-              }}
-              accent="dark"
-              icon={
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M2 6c4-1 6 0 10 2 4-2 6-3 10-2v13c-4-1-6 0-10 2-4-2-6-3-10-2V6zM12 8v13"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              }
-            >
-              이어 읽기
-            </StatusToggle>
-            <StatusToggle
               active={bookmarkOnly}
               onClick={() => {
                 setBookmarkOnly((v) => !v);
                 if (!bookmarkOnly) {
                   setUnreadOnly(false);
-                  setFavoriteOnly(false);
                   setContinueOnly(false);
                 }
               }}
@@ -619,62 +609,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             >
               북마크
             </StatusToggle>
-            <button
-              type="button"
-              onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
-              aria-pressed={sort === "asc"}
-              title={
-                sort === "desc"
-                  ? "최신순 (눌러서 과거순)"
-                  : "과거순 (눌러서 최신순)"
-              }
-              className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[32px]"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-                {sort === "desc" ? (
-                  <path
-                    d="M8 3v10M4 9l4 4 4-4"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                ) : (
-                  <path
-                    d="M8 13V3M4 7l4-4 4 4"
-                    stroke="currentColor"
-                    strokeWidth="1.8"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                )}
-              </svg>
-              {sort === "desc" ? "최신순" : "과거순"}
-            </button>
-          </div>
-        </div>
-
-        {/* 아랫줄: 카테고리 pills (전체 / 웹툰 / 영상) */}
-        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-1.5 min-w-max">
-            <CategoryPill
-              active={cat === "all"}
-              onClick={() => setCat("all")}
-            >
-              전체
-            </CategoryPill>
-            <CategoryPill
-              active={cat === "1"}
-              onClick={() => setCat("1")}
-            >
-              웹툰
-            </CategoryPill>
-            <CategoryPill
-              active={cat === "2"}
-              onClick={() => setCat("2")}
-            >
-              영상
-            </CategoryPill>
           </div>
         </div>
 
@@ -954,31 +888,6 @@ function StatusToggle({
       }`}
     >
       {icon}
-      {children}
-    </button>
-  );
-}
-
-function CategoryPill({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors min-h-[32px] ${
-        active
-          ? "bg-[var(--color-text)] text-white"
-          : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
-      }`}
-    >
       {children}
     </button>
   );
