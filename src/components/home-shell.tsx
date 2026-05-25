@@ -513,58 +513,90 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </Link>
         </div>
 
-        {/* Category pill bar — 가로 스크롤 가능 (현재 3개라 모바일에서도 다 보임) */}
-        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-1.5 min-w-max">
-            <CategoryPill
-              active={cat === "all"}
-              onClick={() => setCat("all")}
-            >
-              전체
-            </CategoryPill>
-            <CategoryPill
-              active={cat === "1"}
-              onClick={() => setCat("1")}
-            >
-              웹툰
-            </CategoryPill>
-            <CategoryPill
-              active={cat === "2"}
-              onClick={() => setCat("2")}
-            >
-              영상
-            </CategoryPill>
-            {/* 현재 적용 중인 시리즈/연도/즐겨찾기 가 있다면 한눈에 보이도록
-                요약 칩으로도 노출 — 탭하면 해당 필터를 즉시 해제. */}
-            {seriesFilter !== "all" && (
-              <ActiveFilterChip
-                label={seriesFilter}
-                onRemove={() => {
-                  setSeriesFilter("all");
-                  setSort("desc");
-                }}
-              />
-            )}
-            {yearFilter !== "all" && (
-              <ActiveFilterChip
-                label={yearFilter}
-                onRemove={() => setYearFilter("all")}
-              />
-            )}
-            {unreadOnly && (
-              <ActiveFilterChip
-                label="안 읽음만"
-                onRemove={() => setUnreadOnly(false)}
-              />
-            )}
-            {favoriteOnly && (
-              <ActiveFilterChip
-                label="즐겨찾기만"
-                onRemove={() => setFavoriteOnly(false)}
-                accent="amber"
-              />
-            )}
+        {/* Category pills + active chips (좌측 스크롤) + 정렬 버튼(우측 고정).
+            정렬은 자주 토글하는 컨트롤이라 시트에 묻지 않고 가시 영역에 둠.
+            시트 안에도 동일한 정렬 컨트롤이 있으니 어느 쪽이든 사용 가능. */}
+        <div className="flex items-center gap-2 px-3 pb-2.5">
+          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-1.5 min-w-max">
+              <CategoryPill
+                active={cat === "all"}
+                onClick={() => setCat("all")}
+              >
+                전체
+              </CategoryPill>
+              <CategoryPill
+                active={cat === "1"}
+                onClick={() => setCat("1")}
+              >
+                웹툰
+              </CategoryPill>
+              <CategoryPill
+                active={cat === "2"}
+                onClick={() => setCat("2")}
+              >
+                영상
+              </CategoryPill>
+              {/* 현재 적용 중인 시리즈/연도/즐겨찾기 가 있다면 한눈에 보이도록
+                  요약 칩으로도 노출 — 탭하면 해당 필터를 즉시 해제. */}
+              {seriesFilter !== "all" && (
+                <ActiveFilterChip
+                  label={seriesFilter}
+                  onRemove={() => {
+                    setSeriesFilter("all");
+                    setSort("desc");
+                  }}
+                />
+              )}
+              {yearFilter !== "all" && (
+                <ActiveFilterChip
+                  label={yearFilter}
+                  onRemove={() => setYearFilter("all")}
+                />
+              )}
+              {unreadOnly && (
+                <ActiveFilterChip
+                  label="안 읽음만"
+                  onRemove={() => setUnreadOnly(false)}
+                />
+              )}
+              {favoriteOnly && (
+                <ActiveFilterChip
+                  label="즐겨찾기만"
+                  onRemove={() => setFavoriteOnly(false)}
+                  accent="amber"
+                />
+              )}
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
+            aria-pressed={sort === "asc"}
+            title={sort === "desc" ? "최신순 (눌러서 과거순)" : "과거순 (눌러서 최신순)"}
+            className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[32px]"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              {sort === "desc" ? (
+                <path
+                  d="M8 3v10M4 9l4 4 4-4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              ) : (
+                <path
+                  d="M8 13V3M4 7l4-4 4 4"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+            </svg>
+            {sort === "desc" ? "최신순" : "과거순"}
+          </button>
         </div>
 
         {/* View tabs — 시리즈 / 회차. 네이버웹툰 식 underline 탭. */}
