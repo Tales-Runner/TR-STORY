@@ -67,6 +67,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const [seriesFilter, setSeriesFilter] = useState<string>("all");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [favoriteOnly, setFavoriteOnly] = useState(false);
+  // 진행 중인 회차만 (스크롤 진행률 0.02~0.95 + 미완독). 즐겨찾기와는 독립.
+  const [continueOnly, setContinueOnly] = useState(false);
+  // 책갈피 표시한 회차만.
+  const [bookmarkOnly, setBookmarkOnly] = useState(false);
   const [sort, setSort] = useState<SortOrder>("desc");
   // 메인 화면 기본 보기는 "시리즈 카드" — 웹툰 앱 표준 패턴. 사용자가 "회차"
   // 탭을 누르면 기존의 연도별 회차 리스트를 본다. 시리즈 필터를 켜면 자연스럽게
@@ -165,6 +169,15 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     if (favoriteOnly && ready) {
       list = list.filter((s) => favoriteIds.has(s.id));
     }
+    if (continueOnly && ready) {
+      list = list.filter((s) => {
+        const p = progress.get(s.id) ?? 0;
+        return p > 0.02 && p < 0.95 && !readIds.has(s.id);
+      });
+    }
+    if (bookmarkOnly && ready) {
+      list = list.filter((s) => bookmarkIds.has(s.id));
+    }
     return list;
   }, [
     stories,
@@ -174,8 +187,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     debouncedQ,
     unreadOnly,
     favoriteOnly,
+    continueOnly,
+    bookmarkOnly,
     readIds,
     favoriteIds,
+    bookmarkIds,
+    progress,
     ready,
   ]);
 
@@ -249,7 +266,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 이전 필터 카드들이 잠깐 깜빡임).
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [prevFilterKey, setPrevFilterKey] = useState("");
-  const filterKey = `${cat}|${yearFilter}|${seriesFilter}|${debouncedQ}|${unreadOnly}|${favoriteOnly}|${sort}`;
+  const filterKey = `${cat}|${yearFilter}|${seriesFilter}|${debouncedQ}|${unreadOnly}|${favoriteOnly}|${continueOnly}|${bookmarkOnly}|${sort}`;
   if (prevFilterKey !== filterKey) {
     setPrevFilterKey(filterKey);
     setVisibleCount(PAGE_SIZE);
@@ -298,7 +315,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     yearFilter === "all" &&
     seriesFilter === "all" &&
     !unreadOnly &&
-    !favoriteOnly;
+    !favoriteOnly &&
+    !continueOnly &&
+    !bookmarkOnly;
 
   // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
   // "캐릭터 스토리" 는 단편 모음(서로 다른 캐릭터별 1~3편) 이라 다른 시리즈와
@@ -457,66 +476,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </Link>
         </div>
 
-        {/* Category pills + active chips (좌측 스크롤) + 정렬 버튼(우측 고정).
-            정렬은 자주 토글하는 컨트롤이라 시트에 묻지 않고 가시 영역에 둠.
-            시트 안에도 동일한 정렬 컨트롤이 있으니 어느 쪽이든 사용 가능. */}
-        <div className="flex items-center gap-2 px-3 pb-2.5">
-          <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
-            <div className="flex items-center gap-1.5 min-w-max">
-              <CategoryPill
-                active={cat === "all"}
-                onClick={() => setCat("all")}
-              >
-                전체
-              </CategoryPill>
-              <CategoryPill
-                active={cat === "1"}
-                onClick={() => setCat("1")}
-              >
-                웹툰
-              </CategoryPill>
-              <CategoryPill
-                active={cat === "2"}
-                onClick={() => setCat("2")}
-              >
-                영상
-              </CategoryPill>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
-            aria-pressed={sort === "asc"}
-            title={sort === "desc" ? "최신순 (눌러서 과거순)" : "과거순 (눌러서 최신순)"}
-            className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[32px]"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-              {sort === "desc" ? (
-                <path
-                  d="M8 3v10M4 9l4 4 4-4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              ) : (
-                <path
-                  d="M8 13V3M4 7l4-4 4 4"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              )}
-            </svg>
-            {sort === "desc" ? "최신순" : "과거순"}
-          </button>
-        </div>
-
-        {/* 인라인 필터 행 — 연도 / 시리즈 selects + 안 읽음 / 즐겨찾기 토글.
-            바텀시트 형태가 답답하다는 피드백을 받아 다시 헤더로 끌어올림.
-            가로 스크롤 가능. */}
-        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
+        {/* 윗줄: 연도 / 시리즈 selects + 상태 토글(안 읽음/즐겨찾기/이어읽기/
+            북마크) + 정렬. 가로 스크롤. 4 개 상태 토글은 서로 배타 — 한 시점에
+            한 가지 필터만. */}
+        <div className="px-3 pb-2 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1.5 min-w-max">
             <FilterSelect
               value={yearFilter}
@@ -536,36 +499,182 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 ...seriesChoices.map((s) => ({ value: s, label: s })),
               ]}
             />
-            <button
-              type="button"
+            <StatusToggle
+              active={unreadOnly}
               onClick={() => {
                 setUnreadOnly((v) => !v);
-                if (!unreadOnly) setFavoriteOnly(false);
+                if (!unreadOnly) {
+                  setFavoriteOnly(false);
+                  setContinueOnly(false);
+                  setBookmarkOnly(false);
+                }
               }}
-              aria-pressed={unreadOnly}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
-                unreadOnly
-                  ? "bg-[var(--color-text)] text-white"
-                  : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
-              }`}
+              accent="dark"
+              icon={
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="3"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  />
+                  {!unreadOnly && (
+                    <path
+                      d="M4 4l16 16"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                    />
+                  )}
+                </svg>
+              }
             >
               안 읽음
-            </button>
-            <button
-              type="button"
+            </StatusToggle>
+            <StatusToggle
+              active={favoriteOnly}
               onClick={() => {
                 setFavoriteOnly((v) => !v);
-                if (!favoriteOnly) setUnreadOnly(false);
+                if (!favoriteOnly) {
+                  setUnreadOnly(false);
+                  setContinueOnly(false);
+                  setBookmarkOnly(false);
+                }
               }}
-              aria-pressed={favoriteOnly}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
-                favoriteOnly
-                  ? "bg-amber-400 text-white"
-                  : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
-              }`}
+              accent="amber"
+              icon={
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill={favoriteOnly ? "currentColor" : "none"}
+                >
+                  <path
+                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
             >
-              ★ 즐겨찾기
+              즐겨찾기
+            </StatusToggle>
+            <StatusToggle
+              active={continueOnly}
+              onClick={() => {
+                setContinueOnly((v) => !v);
+                if (!continueOnly) {
+                  setUnreadOnly(false);
+                  setFavoriteOnly(false);
+                  setBookmarkOnly(false);
+                }
+              }}
+              accent="dark"
+              icon={
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M2 6c4-1 6 0 10 2 4-2 6-3 10-2v13c-4-1-6 0-10 2-4-2-6-3-10-2V6zM12 8v13"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
+            >
+              이어 읽기
+            </StatusToggle>
+            <StatusToggle
+              active={bookmarkOnly}
+              onClick={() => {
+                setBookmarkOnly((v) => !v);
+                if (!bookmarkOnly) {
+                  setUnreadOnly(false);
+                  setFavoriteOnly(false);
+                  setContinueOnly(false);
+                }
+              }}
+              accent="dark"
+              icon={
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill={bookmarkOnly ? "currentColor" : "none"}
+                >
+                  <path
+                    d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              }
+            >
+              북마크
+            </StatusToggle>
+            <button
+              type="button"
+              onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
+              aria-pressed={sort === "asc"}
+              title={
+                sort === "desc"
+                  ? "최신순 (눌러서 과거순)"
+                  : "과거순 (눌러서 최신순)"
+              }
+              className="shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)] min-h-[32px]"
+            >
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                {sort === "desc" ? (
+                  <path
+                    d="M8 3v10M4 9l4 4 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                ) : (
+                  <path
+                    d="M8 13V3M4 7l4-4 4 4"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+              {sort === "desc" ? "최신순" : "과거순"}
             </button>
+          </div>
+        </div>
+
+        {/* 아랫줄: 카테고리 pills (전체 / 웹툰 / 영상) */}
+        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <CategoryPill
+              active={cat === "all"}
+              onClick={() => setCat("all")}
+            >
+              전체
+            </CategoryPill>
+            <CategoryPill
+              active={cat === "1"}
+              onClick={() => setCat("1")}
+            >
+              웹툰
+            </CategoryPill>
+            <CategoryPill
+              active={cat === "2"}
+              onClick={() => setCat("2")}
+            >
+              영상
+            </CategoryPill>
           </div>
         </div>
 
@@ -813,6 +922,40 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
       <BottomNav />
     </div>
+  );
+}
+
+function StatusToggle({
+  active,
+  onClick,
+  accent,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  accent: "dark" | "amber";
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const activeCls =
+    accent === "amber"
+      ? "bg-amber-400 text-white"
+      : "bg-[var(--color-text)] text-white";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
+        active
+          ? activeCls
+          : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
   );
 }
 
