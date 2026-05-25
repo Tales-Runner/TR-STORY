@@ -16,7 +16,6 @@ import { useReadStatus } from "@/lib/use-read-status";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { seriesLabel, SERIES_REPRESENTATIVE_ID } from "@/lib/series";
 import { BottomNav } from "./bottom-nav";
-import { FilterSheet } from "./filter-sheet";
 
 /** 무한 스크롤 페이지 크기 — 모바일 첫 화면에 ~2~3 줄이 보이도록. */
 const PAGE_SIZE = 12;
@@ -361,55 +360,22 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const yearChoices = allGroups.map((g) => g.label);
 
-  // 비-기본 필터 카운트 — 필터 버튼 옆 뱃지로 노출.
-  const activeFilterCount =
-    (yearFilter !== "all" ? 1 : 0) +
-    (seriesFilter !== "all" ? 1 : 0) +
-    (sort !== "desc" ? 1 : 0) +
-    (unreadOnly ? 1 : 0) +
-    (favoriteOnly ? 1 : 0);
-
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const applySheet = useCallback(
-    (next: Partial<{
-      yearFilter: string;
-      seriesFilter: string;
-      sort: SortOrder;
-      unreadOnly: boolean;
-      favoriteOnly: boolean;
-    }>) => {
-      if (next.yearFilter !== undefined) setYearFilter(next.yearFilter);
-      if (next.seriesFilter !== undefined) {
-        // 시트에서 시리즈를 고르면 그 시리즈의 회차들을 보고 싶다는 뜻 — 자동으로
-        // 회차 뷰로 전환. + 시즌제는 1편부터 보는 게 자연스러워 sort=asc.
-        setSeriesFilter(next.seriesFilter);
-        if (next.seriesFilter === "all") {
-          setSort("desc");
-        } else {
-          setSort("asc");
-          setView("episode");
-        }
-      }
-      if (next.sort !== undefined) setSort(next.sort);
-      if (next.unreadOnly !== undefined) setUnreadOnly(next.unreadOnly);
-      if (next.favoriteOnly !== undefined) setFavoriteOnly(next.favoriteOnly);
-    },
-    []
-  );
+  // 시리즈를 고르면 회차 순서대로 보는 게 자연스러우니 sort=asc + 회차 뷰 전환.
+  // 풀면 다시 최신순으로.
+  const handleSeriesFilter = useCallback((v: string) => {
+    setSeriesFilter(v);
+    if (v === "all") {
+      setSort("desc");
+    } else {
+      setSort("asc");
+      setView("episode");
+    }
+  }, []);
 
   const openSeries = useCallback((label: string) => {
     setSeriesFilter(label);
     setSort("asc");
     setView("episode");
-    // 시트가 열려있을 수 있어 닫음(시리즈 카드는 시트 밖에서도 클릭 가능).
-    setSheetOpen(false);
-  }, []);
-  const resetSheet = useCallback(() => {
-    setYearFilter("all");
-    setSeriesFilter("all");
-    setSort("desc");
-    setUnreadOnly(false);
-    setFavoriteOnly(false);
   }, []);
 
   return (
@@ -472,28 +438,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             )}
           </div>
 
-          {/* Filter button — outlined chrome 제거, icon-only */}
-          <button
-            type="button"
-            onClick={() => setSheetOpen(true)}
-            aria-label={`필터${activeFilterCount > 0 ? ` (${activeFilterCount}개 적용)` : ""}`}
-            className="relative shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M3 6h18M6 12h12M10 18h4"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
-            {activeFilterCount > 0 && (
-              <span className="absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[16px] h-[16px] px-1 rounded-full bg-[var(--color-brand)] text-white text-[9px] font-bold">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
-
           {/* Desktop-only 마이페이지 링크 — 모바일은 BottomNav 가 담당 */}
           <Link
             href="/me/"
@@ -537,36 +481,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               >
                 영상
               </CategoryPill>
-              {/* 현재 적용 중인 시리즈/연도/즐겨찾기 가 있다면 한눈에 보이도록
-                  요약 칩으로도 노출 — 탭하면 해당 필터를 즉시 해제. */}
-              {seriesFilter !== "all" && (
-                <ActiveFilterChip
-                  label={seriesFilter}
-                  onRemove={() => {
-                    setSeriesFilter("all");
-                    setSort("desc");
-                  }}
-                />
-              )}
-              {yearFilter !== "all" && (
-                <ActiveFilterChip
-                  label={yearFilter}
-                  onRemove={() => setYearFilter("all")}
-                />
-              )}
-              {unreadOnly && (
-                <ActiveFilterChip
-                  label="안 읽음만"
-                  onRemove={() => setUnreadOnly(false)}
-                />
-              )}
-              {favoriteOnly && (
-                <ActiveFilterChip
-                  label="즐겨찾기만"
-                  onRemove={() => setFavoriteOnly(false)}
-                  accent="amber"
-                />
-              )}
             </div>
           </div>
           <button
@@ -597,6 +511,62 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </svg>
             {sort === "desc" ? "최신순" : "과거순"}
           </button>
+        </div>
+
+        {/* 인라인 필터 행 — 연도 / 시리즈 selects + 안 읽음 / 즐겨찾기 토글.
+            바텀시트 형태가 답답하다는 피드백을 받아 다시 헤더로 끌어올림.
+            가로 스크롤 가능. */}
+        <div className="px-3 pb-2.5 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <FilterSelect
+              value={yearFilter}
+              onChange={setYearFilter}
+              ariaLabel="연도"
+              options={[
+                { value: "all", label: "전체 연도" },
+                ...yearChoices.map((y) => ({ value: y, label: y })),
+              ]}
+            />
+            <FilterSelect
+              value={seriesFilter}
+              onChange={handleSeriesFilter}
+              ariaLabel="시리즈"
+              options={[
+                { value: "all", label: "전체 시리즈" },
+                ...seriesChoices.map((s) => ({ value: s, label: s })),
+              ]}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setUnreadOnly((v) => !v);
+                if (!unreadOnly) setFavoriteOnly(false);
+              }}
+              aria-pressed={unreadOnly}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
+                unreadOnly
+                  ? "bg-[var(--color-text)] text-white"
+                  : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
+              }`}
+            >
+              안 읽음
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setFavoriteOnly((v) => !v);
+                if (!favoriteOnly) setUnreadOnly(false);
+              }}
+              aria-pressed={favoriteOnly}
+              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
+                favoriteOnly
+                  ? "bg-amber-400 text-white"
+                  : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
+              }`}
+            >
+              ★ 즐겨찾기
+            </button>
+          </div>
         </div>
 
         {/* View tabs — 시리즈 / 회차. 네이버웹툰 식 underline 탭. */}
@@ -841,23 +811,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
       </main>
 
-      <FilterSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        yearChoices={yearChoices}
-        seriesChoices={seriesChoices}
-        values={{
-          yearFilter,
-          seriesFilter,
-          sort,
-          unreadOnly,
-          favoriteOnly,
-        }}
-        onChange={applySheet}
-        onReset={resetSheet}
-        activeCount={activeFilterCount}
-      />
-
       <BottomNav />
     </div>
   );
@@ -928,40 +881,52 @@ function ViewTab({
   );
 }
 
-function ActiveFilterChip({
-  label,
-  onRemove,
-  accent = "brand",
+function FilterSelect({
+  value,
+  onChange,
+  options,
+  ariaLabel,
 }: {
-  label: string;
-  onRemove: () => void;
-  accent?: "brand" | "amber";
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+  ariaLabel: string;
 }) {
-  const colors =
-    accent === "amber"
-      ? "bg-amber-100 text-amber-800"
-      : "bg-[var(--color-text)] text-white";
+  const nonDefault = value !== "all";
   return (
-    <span
-      className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium ${colors}`}
-    >
-      <span className="truncate max-w-[120px]">{label}</span>
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`${label} 해제`}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full hover:bg-black/10"
+    <div className="relative shrink-0">
+      <select
+        aria-label={ariaLabel}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`appearance-none rounded-full pl-3 pr-7 py-1.5 text-xs font-medium min-h-[32px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[var(--color-text)]/20 ${
+          nonDefault
+            ? "bg-[var(--color-text)] text-white"
+            : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
+        }`}
       >
-        <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
-          <path
-            d="M3 3l10 10M13 3L3 13"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-    </span>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <svg
+        width="10"
+        height="10"
+        viewBox="0 0 16 16"
+        fill="none"
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+      >
+        <path
+          d="M4 6l4 4 4-4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </div>
   );
 }
 
