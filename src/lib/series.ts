@@ -1,6 +1,10 @@
 import type { StoryListItem } from "./types";
 
-const GENERIC_TAGS = new Set(["웹툰", "영상", ""]);
+// "웹툰"/"영상" 은 카테고리 표식이라 시리즈 식별에 쓸 수 없고, "OST" 도
+// 같은 의미의 장르 태그 — 언더월드/라라 양쪽에 OST 가 붙어있어 시리즈
+// 키로 잡으면 라라 OST 가 언더월드로 흘러가버림. 실제 시리즈명은 OST 뒤에
+// 따로 붙어있으니 OST 도 generic 으로 처리.
+const GENERIC_TAGS = new Set(["웹툰", "영상", "OST", ""]);
 
 /**
  * hashTagSubject 토큰 → 표시용 시리즈 라벨 매핑.
@@ -26,7 +30,6 @@ export const SERIES_TAG_TO_LABEL: Record<string, string> = {
   "언더월드": "언더월드",
   "테일즈 시크릿": "테일즈 시크릿",
   "테일즈": "테일즈 시크릿",
-  "OST": "언더월드",
   "체이서": "체이서, 그 후 이야기",
   "이매망량": "이매망량",
   "테일즈프론티어": "테일즈 프론티어",

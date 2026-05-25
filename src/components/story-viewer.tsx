@@ -14,8 +14,6 @@ import { EpisodeDrawer } from "./episode-drawer";
 import { KeyboardHelp } from "./keyboard-help";
 import { useScrollRestore } from "./use-scroll-restore";
 
-const ZOOM_LEVELS = [1, 1.2, 1.5] as const;
-
 export function StoryViewer({
   story,
   siblings,
@@ -36,7 +34,6 @@ export function StoryViewer({
 
   const [barVisible, setBarVisible] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
-  const [zoomIdx, setZoomIdx] = useState(0);
   const [viewerToast, setViewerToast] = useState<string | null>(null);
   const [isRead, setIsRead] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
@@ -50,8 +47,6 @@ export function StoryViewer({
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-
-  const zoom = ZOOM_LEVELS[zoomIdx];
 
   const showToast = useCallback((msg: string) => {
     setViewerToast(msg);
@@ -350,10 +345,7 @@ export function StoryViewer({
       {/* Content */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto overscroll-contain no-scrollbar"
-        style={{
-          overflowX: zoom > 1 ? "auto" : "hidden",
-        }}
+        className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar"
         onScroll={handleScroll}
         onClick={toggleBar}
         onTouchStart={onTouchStart}
@@ -375,14 +367,7 @@ export function StoryViewer({
             </div>
           </div>
         ) : (
-          <div
-            className={zoom === 1 ? "w-full" : ""}
-            style={
-              zoom > 1
-                ? { width: `${zoom * 30}rem`, maxWidth: "none" }
-                : undefined
-            }
-          >
+          <div className="w-full">
             {story.images
               .filter((img) => isSafeImageUrl(img.imageUrl))
               .map((img, i) => (
@@ -492,22 +477,9 @@ export function StoryViewer({
           >
             ← 이전
           </button>
-          <div className="flex items-center gap-1">
-            {!hasVideo && (
-              <button
-                onClick={() =>
-                  setZoomIdx((i) => (i + 1) % ZOOM_LEVELS.length)
-                }
-                aria-label={`확대 ${zoom}배`}
-                className="rounded-lg px-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-white/55 hover:text-white/85 hover:bg-white/5 text-xs font-bold tabular-nums"
-              >
-                {zoom}×
-              </button>
-            )}
-            <span className="text-[10px] text-white/35 tabular-nums w-9 text-center">
-              {Math.round(scrollProgress * 100)}%
-            </span>
-          </div>
+          <span className="text-[10px] text-white/35 tabular-nums w-9 text-center">
+            {Math.round(scrollProgress * 100)}%
+          </span>
           <button
             onClick={goNext}
             disabled={!hasNext}
