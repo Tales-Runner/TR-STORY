@@ -50,6 +50,7 @@ export function StoryViewer({
   const scrollTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const autoHideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const tapHintTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const showToast = useCallback((msg: string) => {
     setViewerToast(msg);
@@ -122,12 +123,13 @@ export function StoryViewer({
     setBarVisible(true);
     autoHideTimerRef.current = setTimeout(() => {
       setBarVisible(false);
-      // 처음 자동 숨김되는 순간, 한 번만 "탭하면 메뉴" 힌트 노출.
+      // 처음 자동 숨김되는 순간, 한 번만 "탭하면 메뉴" 힌트 노출. 안쪽 타이머도
+      // ref 에 기록해서 unmount cleanup 에서 같이 정리(leak 방지).
       try {
         if (localStorage.getItem("tr-story-viewer-tap-hint") !== "1") {
           setTapHint(true);
           localStorage.setItem("tr-story-viewer-tap-hint", "1");
-          setTimeout(() => setTapHint(false), 2200);
+          tapHintTimerRef.current = setTimeout(() => setTapHint(false), 2200);
         }
       } catch {}
     }, 2500);
@@ -141,20 +143,30 @@ export function StoryViewer({
       clearTimeout(scrollTimerRef.current);
       clearTimeout(autoHideTimerRef.current);
       clearTimeout(toastTimerRef.current);
+      clearTimeout(tapHintTimerRef.current);
     };
   }, []);
 
   const [resumePercent, setResumePercent] = useState<number | null>(null);
+  const [resumeHoldOpen, setResumeHoldOpen] = useState(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const RESUME_AUTO_DISMISS_MS = 6000;
 
-  // 사용자가 직접 다루지 않아도 4초 후 자동 사라짐 — 노출은 충분히 했고
-  // 본문 위에 띄워둔 채로 두면 시각 방해.
+  // 6 초 후 자동 사라짐. 단, 사용자가 배너에 hover / focus 중이면 정지 —
+  // "처음부터" 누르려고 손가락 / 포커스 가져갔는데 사라지면 답답함.
   useEffect(() => {
     if (resumePercent === null) return;
+    if (resumeHoldOpen) {
+      clearTimeout(resumeTimerRef.current);
+      return;
+    }
     clearTimeout(resumeTimerRef.current);
-    resumeTimerRef.current = setTimeout(() => setResumePercent(null), 4000);
+    resumeTimerRef.current = setTimeout(
+      () => setResumePercent(null),
+      RESUME_AUTO_DISMISS_MS
+    );
     return () => clearTimeout(resumeTimerRef.current);
-  }, [resumePercent]);
+  }, [resumePercent, resumeHoldOpen]);
 
   // story.id 가 바뀌면 옛 resume prompt 도 초기화. useScrollRestore 가
   // 새 회차에서 진행률이 있다면 다시 onResumeFromPercent 호출함.
@@ -303,12 +315,12 @@ export function StoryViewer({
         </button>
         <div className="min-w-0 flex-1 px-2">
           {/* 스크롤 진행률에 따라 타이틀 페이드 — 첫 진입 시 또렷, 본문 진입
-              후엔 ~40% 까지 부드럽게 흐려져 본문 몰입을 덜 방해. 사용자가
-              bar 를 살릴 때(barVisible) 보이는 상태만 변경되므로 항상 정보
-              접근 가능. */}
+              후엔 ~40% 까지 흐려져 본문 몰입을 덜 방해. CSS transition 은
+              빼서 scrollProgress 변화를 그대로 따라가게(=중간에 끊김 없음).
+              barVisible 토글은 부모 컨테이너의 전체 페이드가 담당. */}
           <h2
             id={titleId}
-            className="text-sm font-bold truncate text-center transition-opacity duration-300"
+            className="text-sm font-bold truncate text-center"
             style={{
               opacity: Math.max(0.4, 1 - scrollProgress * 1.2),
               color: "rgba(255,255,255,0.95)",
@@ -535,7 +547,8 @@ export function StoryViewer({
       {tapHint && (
         <div
           className="fixed inset-x-0 bottom-24 z-[78] flex justify-center pointer-events-none"
-          aria-hidden
+          role="status"
+          aria-live="polite"
         >
           <div className="rounded-full bg-white/10 backdrop-blur-md px-4 py-2 text-[12px] text-white/85 animate-tap-hint">
             화면을 탭하면 메뉴가 다시 떠요
@@ -545,7 +558,18 @@ export function StoryViewer({
 
       {resumePercent !== null && (
         <div className="fixed top-16 left-0 right-0 z-[75] flex justify-center px-4 pointer-events-none">
-          <div className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 text-sm text-white/85 shadow-lg animate-fade-in-up">
+          <div
+            className="pointer-events-auto inline-flex items-center gap-2 rounded-xl border border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 text-sm text-white/85 shadow-lg animate-fade-in-up"
+            onPointerEnter={() => setResumeHoldOpen(true)}
+            onPointerLeave={() => setResumeHoldOpen(false)}
+            onFocusCapture={() => setResumeHoldOpen(true)}
+            onBlurCapture={(e) => {
+              // 배너 내부에서 다른 자식으로 포커스 이동 시엔 유지
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                setResumeHoldOpen(false);
+              }
+            }}
+          >
             <svg
               width="14"
               height="14"
