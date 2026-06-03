@@ -14,6 +14,9 @@ import { EpisodeDrawer } from "./episode-drawer";
 import { KeyboardHelp } from "./keyboard-help";
 import { useScrollRestore } from "./use-scroll-restore";
 
+/** 이어 보기 배너가 사용자 조작 없이 자동으로 사라지기까지의 시간(ms). */
+const RESUME_AUTO_DISMISS_MS = 6000;
+
 export function StoryViewer({
   story,
   siblings,
@@ -150,7 +153,16 @@ export function StoryViewer({
   const [resumePercent, setResumePercent] = useState<number | null>(null);
   const [resumeHoldOpen, setResumeHoldOpen] = useState(false);
   const resumeTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const RESUME_AUTO_DISMISS_MS = 6000;
+
+  // 배너를 닫는 모든 경로의 단일 출구. resumeHoldOpen 까지 같이 초기화하는 게
+  // 핵심 — hold 는 onPointerLeave / onBlur 로만 false 가 되는데, 버튼 클릭으로
+  // 배너가 unmount 되면 그 이벤트가 발생하지 않아 hold 가 true 로 고착된다.
+  // 그러면 다음 회차의 배너가 영영 자동으로 사라지지 않는다.
+  const dismissResume = useCallback(() => {
+    setResumePercent(null);
+    setResumeHoldOpen(false);
+    clearTimeout(resumeTimerRef.current);
+  }, []);
 
   // 6 초 후 자동 사라짐. 단, 사용자가 배너에 hover / focus 중이면 정지 —
   // "처음부터" 누르려고 손가락 / 포커스 가져갔는데 사라지면 답답함.
@@ -169,17 +181,19 @@ export function StoryViewer({
   }, [resumePercent, resumeHoldOpen]);
 
   // story.id 가 바뀌면 옛 resume prompt 도 초기화. useScrollRestore 가
-  // 새 회차에서 진행률이 있다면 다시 onResumeFromPercent 호출함.
+  // 새 회차에서 진행률이 있다면 다시 onResumeFromPercent 호출함. hold 도 같이
+  // 풀어 이전 회차에서 hover 중 이동한 경우의 고착을 막는다.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    /* eslint-disable react-hooks/set-state-in-effect */
     setResumePercent(null);
+    setResumeHoldOpen(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [story.id]);
 
   const handleResumeReset = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    setResumePercent(null);
-    clearTimeout(resumeTimerRef.current);
-  }, []);
+    dismissResume();
+  }, [dismissResume]);
 
   const { scrollProgress, handleScroll: restoreHandleScroll } =
     useScrollRestore({
@@ -548,7 +562,6 @@ export function StoryViewer({
         <div
           className="fixed inset-x-0 bottom-24 z-[78] flex justify-center pointer-events-none"
           role="status"
-          aria-live="polite"
         >
           <div className="rounded-full bg-white/10 backdrop-blur-md px-4 py-2 text-[12px] text-white/85 animate-tap-hint">
             화면을 탭하면 메뉴가 다시 떠요
@@ -595,7 +608,7 @@ export function StoryViewer({
               처음부터
             </button>
             <button
-              onClick={() => setResumePercent(null)}
+              onClick={dismissResume}
               aria-label="알림 닫기"
               className="rounded-md p-1 text-white/55 hover:text-white/85 hover:bg-white/10"
             >
