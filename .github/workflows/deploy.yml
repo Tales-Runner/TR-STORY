@@ -35,6 +35,12 @@ jobs:
 
       - run: npm ci
 
+      - name: Verify
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test
+
       - name: Try to refresh stories from upstream
         # tr.rhaon.co.kr 가 GitHub-hosted runner IP 대역을 403 으로 막기
         # 때문에, 페치는 best-effort 로만 시도하고 실패 시 커밋된

@@ -75,7 +75,7 @@ npm run dev
 
 빌드 검증:
 ```bash
-npm run typecheck && npm run lint && npm run build
+npm run typecheck && npm run lint && npm test && npm run build
 # out/ 에 정적 export 결과물
 ```
 

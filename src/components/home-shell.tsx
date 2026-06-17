@@ -4,56 +4,37 @@ import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { dataMeta } from "@/lib/api";
 import {
-  formatDate,
   formatISODate,
   daysAgo,
   relativeDays,
-  parseHashTags,
 } from "@/lib/format";
-import { STORY_CATEGORY, STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
-import { seriesLabel, SERIES_REPRESENTATIVE_ID } from "@/lib/series";
+import { seriesLabel } from "@/lib/series";
+import {
+  filterStories,
+  getContinueReading,
+  getSeriesCards,
+  getSeriesChoices,
+  getSeriesCounts,
+  getSeriesReadCounts,
+  groupByYear,
+  groupVisibleStories,
+  type SeriesCardData,
+  type SortOrder,
+} from "@/lib/story-selectors";
 import { BottomNav } from "./bottom-nav";
+import {
+  FilterSelect,
+  SeriesCard,
+  StatusToggle,
+  StoryRow,
+  ViewTab,
+} from "./home-shell-parts";
 
 /** 무한 스크롤 페이지 크기 — 모바일 첫 화면에 ~2~3 줄이 보이도록. */
 const PAGE_SIZE = 12;
-const OFFICIAL_STORY_BASE = "https://tr.game.onstove.com/archive/trstory";
-
-interface YearGroup {
-  label: string;
-  items: StoryListItem[];
-}
-
-function rank(label: string): [number, string] {
-  const m = label.match(/^(\d{4})/);
-  if (m) return [0, m[1]];
-  return [1, label];
-}
-
-function groupByYear(stories: StoryListItem[]): YearGroup[] {
-  const map = new Map<string, StoryListItem[]>();
-  for (const s of stories) {
-    const arr = map.get(s.openYear) ?? [];
-    arr.push(s);
-    map.set(s.openYear, arr);
-  }
-  return [...map.entries()]
-    .map(([label, items]) => ({
-      label,
-      items: items.slice().sort((a, b) => b.openDt.localeCompare(a.openDt)),
-    }))
-    .sort((a, b) => {
-      const [ra, ka] = rank(a.label);
-      const [rb, kb] = rank(b.label);
-      if (ra !== rb) return ra - rb;
-      if (ra === 0) return kb.localeCompare(ka);
-      return ka.localeCompare(kb);
-    });
-}
-
-type SortOrder = "desc" | "asc";
 
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // Avoid useSearchParams: it requires a Suspense boundary, and the
@@ -124,63 +105,46 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const allGroups = useMemo(() => groupByYear(stories), [stories]);
 
-  // 시리즈별 총편수 — 모든 스토리 기준 (필터와 무관).
-  const seriesCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const s of stories) {
-      const k = seriesLabel(s);
-      if (!k) continue;
-      map.set(k, (map.get(k) ?? 0) + 1);
-    }
-    return map;
-  }, [stories]);
+  // 시리즈별 총편수 / 읽은 편수 — 모든 스토리 기준 (필터와 무관).
+  const seriesCounts = useMemo(() => getSeriesCounts(stories), [stories]);
+  const seriesReadCounts = useMemo(
+    () => getSeriesReadCounts(stories, readIds),
+    [stories, readIds]
+  );
 
   // 검색어는 200ms 디바운스 — 키 입력마다 198편 전체 재필터링하면 모바일에서
   // 체감 끊김이 생긴다. (즉시 반응성이 필요한 셀렉트 필터는 디바운스 안 함.)
   const debouncedQ = useDebouncedValue(q, 200);
 
-  const filtered = useMemo(() => {
-    let list = stories;
-    if (yearFilter !== "all") {
-      list = list.filter((s) => s.openYear === yearFilter);
-    }
-    if (seriesFilter !== "all") {
-      list = list.filter((s) => seriesLabel(s) === seriesFilter);
-    }
-    if (debouncedQ.trim()) {
-      const key = debouncedQ.trim().toLowerCase();
-      list = list.filter(
-        (s) =>
-          s.subject.toLowerCase().includes(key) ||
-          s.hashTagSubject.toLowerCase().includes(key)
-      );
-    }
-    if (unreadOnly && ready) {
-      list = list.filter((s) => !readIds.has(s.id));
-    }
-    if (continueOnly && ready) {
-      list = list.filter((s) => {
-        const p = progress.get(s.id) ?? 0;
-        return p > 0.02 && p < 0.95 && !readIds.has(s.id);
-      });
-    }
-    if (bookmarkOnly && ready) {
-      list = list.filter((s) => bookmarkIds.has(s.id));
-    }
-    return list;
-  }, [
-    stories,
-    yearFilter,
-    seriesFilter,
-    debouncedQ,
-    unreadOnly,
-    continueOnly,
-    bookmarkOnly,
-    readIds,
-    bookmarkIds,
-    progress,
-    ready,
-  ]);
+  const filtered = useMemo(
+    () =>
+      filterStories({
+        stories,
+        yearFilter,
+        seriesFilter,
+        query: debouncedQ,
+        unreadOnly,
+        continueOnly,
+        bookmarkOnly,
+        ready,
+        readIds,
+        bookmarkIds,
+        progress,
+      }),
+    [
+      stories,
+      yearFilter,
+      seriesFilter,
+      debouncedQ,
+      unreadOnly,
+      continueOnly,
+      bookmarkOnly,
+      ready,
+      readIds,
+      bookmarkIds,
+      progress,
+    ]
+  );
 
   // ── 시리즈 카드 ────────────────────────────────────────────────────
   // 시리즈 뷰는 filtered 결과를 시리즈로 묶어서 보여줌 — 필터(카테고리/연도/검색/
@@ -188,62 +152,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 안 읽은 웹툰 회차가 1편이라도 있는 시리즈들. 대표 이미지는 그 시리즈의
   // (filtered 안에서) 가장 최신 회차 썸네일. 시리즈 라벨이 없는 회차는 "기타"
   // 버킷으로 묶음.
-  interface SeriesCardData {
-    label: string;
-    count: number;
-    totalCount: number;
-    readCount: number;
-    latestDt: string;
-    latestThumbnail: string;
-    sampleStory: StoryListItem;
-  }
-  const seriesCards = useMemo<SeriesCardData[]>(() => {
-    const buckets = new Map<string, StoryListItem[]>();
-    for (const s of filtered) {
-      const k = seriesLabel(s) ?? "기타";
-      const arr = buckets.get(k) ?? [];
-      arr.push(s);
-      buckets.set(k, arr);
-    }
-    const result: SeriesCardData[] = [];
-    for (const [label, items] of buckets) {
-      // openDt 가 큰 (최신) 게 앞에 오도록 정렬해 대표 썸네일 / 정렬 키로 사용.
-      const sorted = items.slice().sort((a, b) =>
-        b.openDt.localeCompare(a.openDt)
-      );
-      const latest = sorted[0];
-      // SERIES_REPRESENTATIVE_ID 에 강제 지정된 회차가 있고 현재 필터 결과 안에
-      // 포함되어 있다면 그 회차의 썸네일을 시리즈 대표로 사용 (캐릭터 스토리 등).
-      const overrideId = SERIES_REPRESENTATIVE_ID[label];
-      const rep =
-        (overrideId !== undefined &&
-          sorted.find((s) => s.id === overrideId)) ||
-        latest;
-      const readInFiltered = sorted.reduce(
-        (acc, s) => (readIds.has(s.id) ? acc + 1 : acc),
-        0
-      );
-      result.push({
-        label,
-        count: sorted.length,
-        totalCount: seriesCounts.get(label) ?? sorted.length,
-        readCount: readInFiltered,
-        latestDt: latest.openDt,
-        latestThumbnail: rep.thumbnail,
-        sampleStory: rep,
-      });
-    }
-    result.sort((a, b) => {
-      // "캐릭터 스토리"·"기타"는 다른 본 시리즈들 뒤에 sentinel 처리
-      const aSent = a.label === "캐릭터 스토리" || a.label === "기타";
-      const bSent = b.label === "캐릭터 스토리" || b.label === "기타";
-      if (aSent !== bSent) return aSent ? 1 : -1;
-      return sort === "asc"
-        ? a.latestDt.localeCompare(b.latestDt)
-        : b.latestDt.localeCompare(a.latestDt);
-    });
-    return result;
-  }, [filtered, readIds, seriesCounts, sort]);
+  const seriesCards = useMemo<SeriesCardData[]>(
+    () => getSeriesCards({ filtered, readIds, seriesCounts, sort }),
+    [filtered, readIds, seriesCounts, sort]
+  );
 
   // ── Infinite scroll (회차 뷰 전용) ──────────────────────────────────
   // 필터 결과 중 PAGE_SIZE 씩 증가시키며 노출. 필터/검색이 바뀌면 visibleCount 를
@@ -285,13 +197,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 최근에 본 것이 위에 오도록 progress 큰 순으로.
   const continueReading = useMemo(() => {
     if (!ready) return [];
-    return stories
-      .filter((s) => {
-        const p = progress.get(s.id) ?? 0;
-        return p > 0.02 && p < 0.95 && !readIds.has(s.id);
-      })
-      .sort((a, b) => (progress.get(b.id) ?? 0) - (progress.get(a.id) ?? 0))
-      .slice(0, 6);
+    return getContinueReading(stories, progress, readIds, 6);
   }, [stories, progress, readIds, ready]);
 
   // 어떤 필터/검색도 적용 안 됐을 때만 "이어 읽기" 보여줌.
@@ -306,41 +212,10 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
   // "캐릭터 스토리" 는 단편 모음(서로 다른 캐릭터별 1~3편) 이라 다른 시리즈와
   // 같은 축으로 정렬하면 어색하다 — 항상 맨 뒤 sentinel 로 강제.
-  const seriesChoices = useMemo(() => {
-    const latest = new Map<string, string>();
-    for (const s of stories) {
-      const k = seriesLabel(s);
-      if (!k) continue;
-      const cur = latest.get(k);
-      if (!cur || s.openDt > cur) latest.set(k, s.openDt);
-    }
-    return [...latest.entries()]
-      .sort((a, b) => {
-        if (a[0] === "캐릭터 스토리") return 1;
-        if (b[0] === "캐릭터 스토리") return -1;
-        return b[1].localeCompare(a[1]);
-      })
-      .map(([label]) => label);
-  }, [stories]);
+  const seriesChoices = useMemo(() => getSeriesChoices(stories), [stories]);
 
   const groups = useMemo(() => {
-    // visibleCount 만큼만 노출 → 그 안에서만 그룹핑 / 정렬. 시리즈/연도가
-    // 다양해도 PAGE_SIZE 가 작아 그룹은 1~2 개로 자연 수렴함.
-    const slice =
-      sort === "asc"
-        ? [...filtered].reverse().slice(0, visibleCount)
-        : filtered.slice(0, visibleCount);
-    const g = groupByYear(slice);
-    if (sort === "asc") {
-      return g
-        .slice()
-        .reverse()
-        .map((group) => ({
-          ...group,
-          items: group.items.slice().reverse(),
-        }));
-    }
-    return g;
+    return groupVisibleStories(filtered, sort, visibleCount);
   }, [filtered, sort, visibleCount]);
 
   const handleToggleBookmark = useCallback(
@@ -689,15 +564,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 const prog = progress.get(s.id) ?? 0;
                 const sk = seriesLabel(s);
                 const seriesTotal = sk ? seriesCounts.get(sk) ?? 0 : 0;
-                const seriesRead = sk
-                  ? stories.reduce(
-                      (acc, st) =>
-                        seriesLabel(st) === sk && readIds.has(st.id)
-                          ? acc + 1
-                          : acc,
-                      0
-                    )
-                  : 0;
+                const seriesRead = sk ? seriesReadCounts.get(sk) ?? 0 : 0;
                 return (
                   <li key={`continue-${s.id}`}>
                     <StoryRow
@@ -760,15 +627,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                   const prog = progress.get(s.id) ?? 0;
                   const sk = seriesLabel(s);
                   const seriesTotal = sk ? seriesCounts.get(sk) ?? 0 : 0;
-                  const seriesRead = sk
-                    ? stories.reduce(
-                        (acc, st) =>
-                          seriesLabel(st) === sk && readIds.has(st.id)
-                            ? acc + 1
-                            : acc,
-                        0
-                      )
-                    : 0;
+                  const seriesRead = sk ? seriesReadCounts.get(sk) ?? 0 : 0;
                   return (
                     <li key={s.id}>
                       <StoryRow
@@ -856,452 +715,5 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
       <BottomNav />
     </div>
-  );
-}
-
-function StatusToggle({
-  active,
-  onClick,
-  accent,
-  icon,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  accent: "dark" | "amber";
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  const activeCls =
-    accent === "amber"
-      ? "bg-amber-400 text-white"
-      : "bg-[var(--color-text)] text-white";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`shrink-0 inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium min-h-[32px] transition-colors ${
-        active
-          ? activeCls
-          : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
-      }`}
-    >
-      {icon}
-      {children}
-    </button>
-  );
-}
-
-function ViewTab({
-  active,
-  onClick,
-  count,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  count: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`relative inline-flex items-baseline gap-1.5 px-4 py-2.5 text-sm font-bold transition-colors ${
-        active
-          ? "text-[var(--color-text)]"
-          : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
-      }`}
-    >
-      {children}
-      <span
-        className={`text-[11px] font-medium tabular-nums ${
-          active ? "text-[var(--color-brand)]" : "text-[var(--color-text-muted)]"
-        }`}
-      >
-        {count}
-      </span>
-      {active && (
-        <span
-          aria-hidden
-          className="absolute left-2 right-2 bottom-0 h-[2px] rounded-full bg-[var(--color-text)]"
-        />
-      )}
-    </button>
-  );
-}
-
-function FilterSelect({
-  value,
-  onChange,
-  options,
-  ariaLabel,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options: { value: string; label: string }[];
-  ariaLabel: string;
-}) {
-  const nonDefault = value !== "all";
-  return (
-    <div className="relative shrink-0">
-      <select
-        aria-label={ariaLabel}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`appearance-none rounded-full pl-3 pr-7 py-1.5 text-xs font-medium min-h-[32px] cursor-pointer focus:outline-none focus:ring-1 focus:ring-[var(--color-text)]/20 ${
-          nonDefault
-            ? "bg-[var(--color-text)] text-white"
-            : "bg-[var(--color-surface-alt)] text-[var(--color-text-soft)] hover:bg-[var(--color-border)]"
-        }`}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-      <svg
-        width="10"
-        height="10"
-        viewBox="0 0 16 16"
-        fill="none"
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-      >
-        <path
-          d="M4 6l4 4 4-4"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    </div>
-  );
-}
-
-const CATEGORY_BG: Record<number, string> = {
-  1: "bg-[var(--color-brand)]",
-  2: "bg-rose-500",
-};
-
-function SeriesCard({
-  data,
-  onOpen,
-}: {
-  data: {
-    label: string;
-    count: number;
-    totalCount: number;
-    readCount: number;
-    latestDt: string;
-    latestThumbnail: string;
-    sampleStory: StoryListItem;
-  };
-  onOpen: () => void;
-}) {
-  // 시리즈 카드는 클릭 시 회차 뷰 + 시리즈 필터 적용. 카드 자체는 <button> —
-  // a 태그가 아닌 이유는 같은 페이지 내 상태 전환이지 새 URL 로 이동하는 게
-  // 아니기 때문 (좋은 a11y).
-  const isVideo = data.sampleStory.category === STORY_CATEGORY.VIDEO;
-  const readPct = data.totalCount
-    ? Math.min(100, Math.round((data.readCount / data.totalCount) * 100))
-    : 0;
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group block w-full text-left transition active:scale-[0.98]"
-    >
-      {/* 이미지 자체가 카드. 카드 바깥의 border/bg 제거. */}
-      <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
-        {data.latestThumbnail && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={data.latestThumbnail}
-            alt=""
-            loading="lazy"
-            className="w-full h-full object-cover transition-transform group-hover:scale-[1.04]"
-          />
-        )}
-        {isVideo && (
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            aria-hidden
-          >
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="ml-0.5 text-white"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </span>
-          </div>
-        )}
-        <span className="absolute top-2 left-2 text-[10px] font-bold text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.6)]">
-          {data.count}편
-        </span>
-        {readPct === 100 && (
-          <span className="absolute top-2 right-2 rounded-full bg-[var(--color-brand)] px-1.5 py-0.5 text-[9px] font-bold text-white">
-            완독
-          </span>
-        )}
-        {/* 진행률을 썸네일 하단 바로 표시 — 카드 내부에 또 박스를 만들지 않음. */}
-        {readPct > 0 && readPct < 100 && (
-          <div
-            className="absolute bottom-0 left-0 right-0 h-[3px] bg-black/30"
-            aria-hidden
-          >
-            <div
-              className="h-full bg-[var(--color-brand)]"
-              style={{ width: `${readPct}%` }}
-            />
-          </div>
-        )}
-      </div>
-      <div className="pt-2 pb-1 px-0.5">
-        <h3 className="text-[13px] font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em]">
-          {data.label}
-        </h3>
-        <p
-          className="mt-0.5 text-[11px] tabular-nums text-[var(--color-text-muted)]"
-          aria-label={`${data.readCount} 읽음 / 총 ${data.totalCount} 편`}
-        >
-          {data.readCount > 0 ? (
-            <span className="text-[var(--color-brand-strong)] font-semibold">
-              {data.readCount}
-            </span>
-          ) : (
-            <span>0</span>
-          )}
-          <span className="text-[var(--color-text-muted)]"> / {data.totalCount}</span>
-        </p>
-      </div>
-    </button>
-  );
-}
-
-function StoryRow({
-  story,
-  read,
-  bookmark,
-  favorite,
-  progress,
-  seriesLabel,
-  seriesRead,
-  seriesTotal,
-  hideSeriesProgress,
-  onToggleBookmark,
-  onToggleFavorite,
-}: {
-  story: StoryListItem;
-  /** Auto-tracked read (80% scroll). Drives the dim/grayscale visual. */
-  read: boolean;
-  /** Manual bookmark (user-set). Drives the bookmark button. */
-  bookmark: boolean;
-  favorite: boolean;
-  progress: number;
-  seriesLabel: string | null;
-  seriesRead: number;
-  seriesTotal: number;
-  /** 부모 리스트가 이미 한 시리즈로 필터링된 경우 row 마다 같은 진행률이
-   *  반복돼 노이즈 — 끄기 위해 true 전달. */
-  hideSeriesProgress?: boolean;
-  onToggleBookmark: (e: React.MouseEvent) => void;
-  onToggleFavorite: (e: React.MouseEvent) => void;
-}) {
-  const label = STORY_CATEGORY_LABEL[story.category] ?? "기타";
-  const tags = parseHashTags(story.hashTagSubject).filter(
-    (t) => t !== "웹툰" && t !== "영상"
-  );
-  const showSeriesProgress =
-    !hideSeriesProgress &&
-    seriesLabel &&
-    seriesTotal >= 2 &&
-    seriesRead > 0;
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-  // 이 미러에 패널 이미지가 없으면 (영상이 외부 호스트로만 제공되거나 데이터에
-  // 누락) 내부 뷰어로 보내봤자 빈 화면이라 의미가 없음 — 공식 페이지로 새창 폴백.
-  const hasImages = story.hasImages;
-  const fullHref = hasImages
-    ? `${basePath}/stories/${story.id}/`
-    : `${OFFICIAL_STORY_BASE}/${story.id}`;
-  const isVideo = story.category === STORY_CATEGORY.VIDEO;
-  return (
-    /* GitHub Pages 정적 호스팅에서 Next.js Link 의 client-side router.push 가
-       silent fail 하는 케이스가 있어 (HEAD prefetch → 503, RSC payload 가
-       HTML 으로 반환됨), 일반 <a> 로 hard-navigate 강제. 정적 사이트라
-       SPA 라우팅 가치가 크지 않고, SSR 된 HTML 이 즉시 표시되어 체감 속도도
-       무해. */
-    <a
-      href={fullHref}
-      {...(!hasImages
-        ? { target: "_blank", rel: "noreferrer noopener" }
-        : null)}
-      className={`relative flex gap-3 py-2 transition active:scale-[0.99] ${
-        read ? "opacity-65" : ""
-      }`}
-    >
-      {/* Thumbnail — 이미지 자체가 카드. 외곽 라인/배경 제거하고 코너만 살짝. */}
-      <div className="relative w-[136px] h-[92px] shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-alt)]">
-        {story.thumbnail && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={story.thumbnail}
-            alt=""
-            loading="lazy"
-            className={`w-full h-full object-cover ${
-              read ? "grayscale opacity-50" : ""
-            }`}
-          />
-        )}
-        {isVideo && (
-          <div
-            className="absolute inset-0 flex items-center justify-center pointer-events-none"
-            aria-hidden
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="ml-0.5 text-white"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </span>
-          </div>
-        )}
-        <span
-          className={`absolute top-1.5 left-1.5 rounded-md text-white text-[10px] font-bold px-1.5 py-0.5 ${
-            CATEGORY_BG[story.category] ?? "bg-slate-500"
-          }`}
-        >
-          {label}
-        </span>
-        {!hasImages && (
-          <span
-            className="absolute bottom-1 left-1.5 rounded-md bg-black/55 px-1 py-[1px] text-[9px] font-bold text-white"
-            title="이 회차는 공식 페이지에서만 볼 수 있어요"
-          >
-            ↗ 공식
-          </span>
-        )}
-      </div>
-
-      {/* Meta */}
-      <div className="flex-1 min-w-0 pr-2 pt-0.5">
-        <h3
-          className={`text-[15px] font-bold leading-snug line-clamp-2 mb-0.5 pr-14 ${
-            read ? "text-[var(--color-text-soft)]" : "text-[var(--color-text)]"
-          }`}
-        >
-          {story.subject}
-        </h3>
-        <p className="text-[12px] text-[var(--color-text-muted)] truncate">
-          {tags.join(" · ") || " "}
-        </p>
-        <p className="text-[11px] text-[var(--color-text-muted)] mt-1 tabular-nums">
-          {formatDate(story.openDt)}
-        </p>
-        {showSeriesProgress && (
-          <div className="mt-1.5 flex items-center gap-1.5">
-            <span className="text-[10px] text-[var(--color-text-muted)] shrink-0 truncate max-w-[88px]">
-              {seriesLabel}
-            </span>
-            <div
-              className="flex-1 h-1 rounded-full bg-[var(--color-brand-soft)] overflow-hidden"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={seriesTotal}
-              aria-valuenow={seriesRead}
-              aria-label={`${seriesLabel} 진행률 ${seriesRead}/${seriesTotal}`}
-            >
-              <div
-                className="h-full bg-[var(--color-brand)]"
-                style={{ width: `${(seriesRead / seriesTotal) * 100}%` }}
-              />
-            </div>
-            <span className="text-[10px] text-[var(--color-brand-strong)] tabular-nums shrink-0 font-semibold">
-              {seriesRead}/{seriesTotal}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Bookmark + Favorite — meta 영역 우상단 (오버레이 chrome 없이 raw icon) */}
-      <div className="absolute top-2 right-0 flex items-center">
-        <button
-          onClick={onToggleBookmark}
-          aria-label={bookmark ? "책갈피 해제" : "책갈피"}
-          aria-pressed={bookmark}
-          title={bookmark ? "책갈피 해제" : "책갈피로 표시"}
-          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
-            bookmark
-              ? "text-[var(--color-brand)]"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
-          }`}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill={bookmark ? "currentColor" : "none"}
-          >
-            <path
-              d="M6 2h12a1 1 0 011 1v19l-7-4-7 4V3a1 1 0 011-1z"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-        <button
-          onClick={onToggleFavorite}
-          aria-label={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
-          aria-pressed={favorite}
-          title={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
-          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
-            favorite
-              ? "text-amber-500"
-              : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
-          }`}
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill={favorite ? "currentColor" : "none"}
-          >
-            <path
-              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
-      </div>
-
-      {/* Progress bar — 썸네일 하단에 얇은 라인 */}
-      {progress > 0.02 && progress < 0.99 && !read && (
-        <div
-          className="absolute left-0 top-[88px] w-[136px] h-[3px] bg-black/10 overflow-hidden rounded-b-lg"
-          aria-hidden
-        >
-          <div
-            className="h-full bg-[var(--color-brand)]"
-            style={{ width: `${Math.round(progress * 100)}%` }}
-          />
-        </div>
-      )}
-    </a>
   );
 }

@@ -5,7 +5,7 @@ import {
   fetchStoryList,
   listAllIds,
 } from "@/lib/api";
-import { seriesLabel } from "@/lib/series";
+import { getStoryNavigation } from "@/lib/story-selectors";
 import { StoryViewer } from "@/components/story-viewer";
 
 export function generateStaticParams() {
@@ -74,22 +74,7 @@ export default async function StoryPage({
   // viewer 안에서 다음 화 버튼은 같은 뷰어가 뜬다는 전제이므로, 이미지가 없는
   // 회차(공식 페이지로 폴백되는 회차)는 후보에서 제외한다.
   // 어느 경우든 chronological(과거 → 최신)로 정렬.
-  const navPool = list.filter((s) => s.hasImages || s.id === n);
-  const seriesKey = seriesLabel(detail);
-  const seriesSiblings = seriesKey
-    ? navPool
-        .filter((s) => seriesLabel(s) === seriesKey)
-        .slice()
-        .sort((a, b) => a.openDt.localeCompare(b.openDt))
-    : [];
-  const useSeriesNav = seriesSiblings.length >= 2;
-  const siblings = useSeriesNav
-    ? seriesSiblings
-    : navPool
-        .filter((s) => s.openYear === detail.openYear)
-        .slice()
-        .sort((a, b) => a.openDt.localeCompare(b.openDt));
-  const yearLabel = useSeriesNav ? (seriesKey ?? detail.openYear) : detail.openYear;
+  const { siblings, yearLabel } = getStoryNavigation(detail, list);
 
   // Next 회차의 첫 1~2 패널을 prefetch 후보로 전달 (이어 읽기 체감 속도용).
   const idx = siblings.findIndex((s) => s.id === n);

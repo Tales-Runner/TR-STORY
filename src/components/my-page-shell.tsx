@@ -7,7 +7,13 @@ import { formatDate, formatISODate, relativeDays, parseHashTags } from "@/lib/fo
 import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import { useReadStatus } from "@/lib/use-read-status";
-import { seriesLabel } from "@/lib/series";
+import {
+  getContinueReading,
+  getReadTimeline,
+  getSeriesProgress,
+  getTimedStories,
+  mapStoriesById,
+} from "@/lib/story-selectors";
 import { BottomNav } from "./bottom-nav";
 
 function formatTimestamp(ms: number): string {
@@ -38,80 +44,32 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
   const { readIds, progress, entries, ready } = useReadStatus();
 
   const storyById = useMemo(() => {
-    const map = new Map<number, StoryListItem>();
-    for (const s of stories) map.set(s.id, s);
-    return map;
+    return mapStoriesById(stories);
   }, [stories]);
 
   // 책갈피 (bookmarkedAt 내림차순)
   const bookmarks = useMemo(() => {
-    return entries
-      .filter((e) => (e.bookmarkedAt ?? 0) > 0)
-      .sort((a, b) => (b.bookmarkedAt ?? 0) - (a.bookmarkedAt ?? 0))
-      .map((e) => ({ story: storyById.get(e.id), at: e.bookmarkedAt ?? 0 }))
-      .filter((x): x is { story: StoryListItem; at: number } => !!x.story);
+    return getTimedStories(entries, storyById, "bookmarkedAt");
   }, [entries, storyById]);
 
   // 즐겨찾기 (favoritedAt 내림차순)
   const favorites = useMemo(() => {
-    return entries
-      .filter((e) => (e.favoritedAt ?? 0) > 0)
-      .sort((a, b) => (b.favoritedAt ?? 0) - (a.favoritedAt ?? 0))
-      .map((e) => ({ story: storyById.get(e.id), at: e.favoritedAt ?? 0 }))
-      .filter((x): x is { story: StoryListItem; at: number } => !!x.story);
+    return getTimedStories(entries, storyById, "favoritedAt");
   }, [entries, storyById]);
 
   // 이어 읽기 (progress 0.02~0.95, 안 읽음)
   const continueReading = useMemo(() => {
-    return stories
-      .filter((s) => {
-        const p = progress.get(s.id) ?? 0;
-        return p > 0.02 && p < 0.95 && !readIds.has(s.id);
-      })
-      .sort((a, b) => (progress.get(b.id) ?? 0) - (progress.get(a.id) ?? 0))
-      .slice(0, 8);
+    return getContinueReading(stories, progress, readIds, 8);
   }, [stories, progress, readIds]);
 
   // 읽음 타임라인 (readAt 내림차순, 날짜별 그룹)
   const readTimeline = useMemo(() => {
-    const byDate = new Map<string, { story: StoryListItem; at: number }[]>();
-    for (const e of entries) {
-      if (!(e.readAt > 0)) continue;
-      const story = storyById.get(e.id);
-      if (!story) continue;
-      const d = new Date(e.readAt);
-      const key = `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
-      const arr = byDate.get(key) ?? [];
-      arr.push({ story, at: e.readAt });
-      byDate.set(key, arr);
-    }
-    return [...byDate.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([date, items]) => ({
-        date,
-        items: items.sort((a, b) => b.at - a.at),
-      }));
+    return getReadTimeline(entries, storyById);
   }, [entries, storyById]);
 
   // 시리즈별 진행률
   const seriesProgress = useMemo(() => {
-    const total = new Map<string, number>();
-    const read = new Map<string, number>();
-    for (const s of stories) {
-      const k = seriesLabel(s);
-      if (!k) continue;
-      total.set(k, (total.get(k) ?? 0) + 1);
-      if (readIds.has(s.id)) read.set(k, (read.get(k) ?? 0) + 1);
-    }
-    return [...total.entries()]
-      .map(([label, t]) => ({
-        label,
-        total: t,
-        read: read.get(label) ?? 0,
-        percent: Math.round(((read.get(label) ?? 0) / t) * 100),
-      }))
-      .filter((x) => x.read > 0)
-      .sort((a, b) => b.percent - a.percent);
+    return getSeriesProgress(stories, readIds);
   }, [stories, readIds]);
 
   const totalRead = readIds.size;
