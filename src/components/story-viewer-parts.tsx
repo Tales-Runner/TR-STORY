@@ -159,6 +159,55 @@ export function ViewerMedia({ story }: { story: StoryDetail }) {
   );
 }
 
+export function ViewerSettingsPopover({
+  brightness,
+  onBrightnessChange,
+  onResetBrightness,
+  onClose,
+}: {
+  brightness: number;
+  onBrightnessChange: (brightness: number) => void;
+  onResetBrightness: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[79]" onClick={onClose}>
+      <div
+        className="absolute right-3 w-56 rounded-xl border border-white/10 bg-[#13101f] p-4 shadow-xl animate-scale-in"
+        style={{
+          bottom: "calc(7rem + env(safe-area-inset-bottom, 0px))",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <label className="mb-3 flex items-center justify-between text-xs text-white/55">
+          <span>밝기</span>
+          <span className="text-white/35 tabular-nums">{brightness}%</span>
+        </label>
+        <input
+          type="range"
+          min={50}
+          max={150}
+          value={brightness}
+          onChange={(e) => onBrightnessChange(Number(e.target.value))}
+          className="w-full accent-[var(--color-brand)]"
+        />
+        <div className="mt-1 flex justify-between text-[10px] text-white/25">
+          <span>어둡게</span>
+          <span>밝게</span>
+        </div>
+        {brightness !== 100 && (
+          <button
+            onClick={onResetBrightness}
+            className="mt-3 w-full rounded-lg bg-white/5 py-1.5 text-xs text-white/50 transition-colors hover:bg-white/10 hover:text-white/70"
+          >
+            초기화
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ViewerEndCta({
   storyId,
   hasNext,
@@ -231,9 +280,13 @@ export function ViewerBottomBar({
   index,
   hasPrev,
   hasNext,
+  zoom,
+  canZoom,
   onOpenDrawer,
   onPrev,
   onNext,
+  onOpenSettings,
+  onToggleZoom,
 }: {
   barClass: string;
   scrollProgress: number;
@@ -242,9 +295,13 @@ export function ViewerBottomBar({
   index: number;
   hasPrev: boolean;
   hasNext: boolean;
+  zoom: number;
+  canZoom: boolean;
   onOpenDrawer: () => void;
   onPrev: () => void;
   onNext: () => void;
+  onOpenSettings: () => void;
+  onToggleZoom: () => void;
 }) {
   return (
     <div
@@ -292,6 +349,38 @@ export function ViewerBottomBar({
         >
           ← 이전
         </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={onOpenSettings}
+            aria-label="뷰어 설정"
+            title="밝기 설정"
+            className="rounded-lg p-2 text-white/55 min-h-[40px] min-w-[40px] transition-colors hover:bg-white/10 hover:text-white/80"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+            </svg>
+          </button>
+          {canZoom && (
+            <button
+              onClick={onToggleZoom}
+              aria-label="확대 비율 변경"
+              title="확대"
+              className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-white/60 min-h-[40px] min-w-[44px] tabular-nums transition-colors hover:bg-white/10 hover:text-white/85"
+            >
+              {zoom}x
+            </button>
+          )}
+        </div>
         <button
           onClick={onNext}
           disabled={!hasNext}
