@@ -3,10 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StoryDetail, StoryListItem } from "@/lib/types";
-import {
-  VIEWER_BRIGHTNESS_KEY,
-  VIEWER_ZOOM_LEVELS,
-} from "@/lib/constants";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { useDocumentKeydown } from "@/lib/use-document-keydown";
 import { useFocusTrap } from "@/lib/use-focus-trap";
@@ -24,7 +20,6 @@ import {
   ViewerEndCta,
   ViewerHelpButton,
   ViewerMedia,
-  ViewerSettingsPopover,
   ViewerToast,
   ViewerTopBar,
 } from "./story-viewer-parts";
@@ -50,16 +45,6 @@ export function StoryViewer({
   const [barVisible, setBarVisible] = useState(true);
   const [showDrawer, setShowDrawer] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [zoomIdx, setZoomIdx] = useState(0);
-  const [brightness, setBrightness] = useState(() => {
-    try {
-      const saved = localStorage.getItem(VIEWER_BRIGHTNESS_KEY);
-      const parsed = saved ? Number(saved) : 100;
-      if (Number.isFinite(parsed)) return Math.min(Math.max(parsed, 50), 150);
-    } catch {}
-    return 100;
-  });
   // 첫 진입 시 nav 가 자동 숨김되는 순간, 화면 어디나 탭하면 다시 떠오른다는
   // 힌트를 짧게 표시. localStorage 로 한 번만 노출.
   const [tapHint, setTapHint] = useState(false);
@@ -82,9 +67,6 @@ export function StoryViewer({
     toggleBookmark,
   } = useStoryViewerStatus({ storyId: story.id, showToast });
 
-  const hasVideo = story.images.some((img) => img.movieUrl);
-  const zoom = hasVideo ? 1 : (VIEWER_ZOOM_LEVELS[zoomIdx] ?? 1);
-
   useBodyScrollLock(true);
   // Disable the outer focus trap while a nested dialog is open — otherwise
   // both traps register keydown listeners and the outer one cycles Tab
@@ -97,7 +79,6 @@ export function StoryViewer({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBarVisible(true);
-    setShowSettings(false);
     autoHideTimerRef.current = setTimeout(() => {
       setBarVisible(false);
       // 처음 자동 숨김되는 순간, 한 번만 "탭하면 메뉴" 힌트 노출. 안쪽 타이머도
@@ -163,8 +144,7 @@ export function StoryViewer({
         const tag = (e.target as HTMLElement | null)?.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
         if (e.key === "Escape") {
-          if (showSettings) setShowSettings(false);
-          else if (showHelp) setShowHelp(false);
+          if (showHelp) setShowHelp(false);
           else if (showDrawer) setShowDrawer(false);
           else goClose();
         } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
@@ -185,16 +165,7 @@ export function StoryViewer({
           goNext();
         }
       },
-      [
-        goClose,
-        goPrev,
-        goNext,
-        hasPrev,
-        hasNext,
-        showSettings,
-        showHelp,
-        showDrawer,
-      ]
+      [goClose, goPrev, goNext, hasPrev, hasNext, showHelp, showDrawer]
     )
   );
 
@@ -220,22 +191,6 @@ export function StoryViewer({
     clearTimeout(scrollTimerRef.current);
     clearTimeout(autoHideTimerRef.current);
     setBarVisible((v) => !v);
-  }, []);
-
-  const handleBrightness = useCallback((value: number) => {
-    const next = Math.min(Math.max(value, 50), 150);
-    setBrightness(next);
-    try {
-      localStorage.setItem(VIEWER_BRIGHTNESS_KEY, String(next));
-    } catch {}
-  }, []);
-
-  const resetBrightness = useCallback(() => {
-    handleBrightness(100);
-  }, [handleBrightness]);
-
-  const toggleZoom = useCallback(() => {
-    setZoomIdx((i) => (i + 1) % VIEWER_ZOOM_LEVELS.length);
   }, []);
 
   const { onTouchStart, onTouchEnd } = useSwipeNav({
@@ -281,27 +236,13 @@ export function StoryViewer({
         {/* Content */}
         <div
           ref={scrollRef}
-          className="flex-1 overflow-y-auto overscroll-contain no-scrollbar"
-          style={{
-            filter:
-              brightness !== 100 ? `brightness(${brightness}%)` : undefined,
-            overflowX: zoom > 1 ? "auto" : "hidden",
-          }}
+          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain no-scrollbar"
           onScroll={handleScroll}
           onClick={toggleBar}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          <div
-            className="transition-[width] duration-150"
-            style={
-              zoom > 1
-                ? { width: `${zoom * 100}%`, maxWidth: "none" }
-                : undefined
-            }
-          >
-            <ViewerMedia story={story} />
-          </div>
+          <ViewerMedia story={story} />
           <ViewerEndCta
             storyId={story.id}
             hasNext={hasNext}
@@ -320,13 +261,9 @@ export function StoryViewer({
           index={idx}
           hasPrev={hasPrev}
           hasNext={hasNext}
-          zoom={zoom}
-          canZoom={!hasVideo}
           onOpenDrawer={() => setShowDrawer(true)}
           onPrev={goPrev}
           onNext={goNext}
-          onOpenSettings={() => setShowSettings(true)}
-          onToggleZoom={toggleZoom}
         />
 
         {viewerToast && <ViewerToast message={viewerToast} />}
@@ -350,15 +287,6 @@ export function StoryViewer({
             readIds={readIds}
             onSelect={goJump}
             onClose={() => setShowDrawer(false)}
-          />
-        )}
-
-        {showSettings && (
-          <ViewerSettingsPopover
-            brightness={brightness}
-            onBrightnessChange={handleBrightness}
-            onResetBrightness={resetBrightness}
-            onClose={() => setShowSettings(false)}
           />
         )}
 
