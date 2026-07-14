@@ -49,6 +49,8 @@ export function WebtoonImage({
           src={src}
           alt={alt}
           loading={priority ? "eager" : "lazy"}
+          // Referer 를 보내지 않아 원본 CDN 의 핫링크(Referer) 차단에 견딘다.
+          referrerPolicy="no-referrer"
           onLoad={() => setLoaded(true)}
           onError={() => setErrored(true)}
           className="w-full h-auto block select-none"

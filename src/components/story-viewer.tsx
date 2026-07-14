@@ -175,6 +175,9 @@ export function StoryViewer({
     for (const url of nextPreloadImages) {
       if (!url) continue;
       const preload = new Image();
+      // 렌더 시점의 <img> 와 동일하게 no-referrer 로 프리페치해야 캐시가
+      // 재사용되고, 원본 CDN 의 Referer 차단에도 동일하게 견딘다.
+      preload.referrerPolicy = "no-referrer";
       preload.src = url;
     }
   }, [nextPreloadImages]);

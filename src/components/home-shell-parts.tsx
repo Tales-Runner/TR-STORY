@@ -160,6 +160,10 @@ export function SeriesCard({
             src={data.latestThumbnail}
             alt=""
             loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             className="w-full h-full object-cover transition-transform group-hover:scale-[1.04]"
           />
         )}
@@ -283,6 +287,10 @@ export function StoryRow({
             src={story.thumbnail}
             alt=""
             loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             className={`w-full h-full object-cover ${
               read ? "grayscale opacity-50" : ""
             }`}
