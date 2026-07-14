@@ -11,14 +11,18 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 const API_BASE = "https://tr.rhaon.co.kr/webb";
-// CI runner IP 대역이 차단되는 경우가 있어, 일반 브라우저처럼 보이도록 UA·
-// Referer·Origin·Accept-Language 를 채워 보낸다. 그래도 403 이 나오면
-// 로컬에서 fetch-data 를 돌리고 stories.json 을 커밋해 CI 는 빌드만 하도록
-// (`SKIP_FETCH=1 npm run build`) 우회한다.
+// 업스트림은 일반 브라우저처럼 보이는 요청만 받으므로 UA·Referer·
+// Accept-Language 를 채워 보낸다.
+//
+// ⚠️ Origin 헤더는 절대 보내지 않는다 — 이 API 는 Origin 이 붙은 요청을
+//    "Invalid CORS request" 로 403 처리한다(브라우저 XHR 이 아니라 서버-투-
+//    서버 호출을 상정한 듯). Origin 을 빼면 Referer 만으로도, 아예 헤더가
+//    없어도 200 이 떨어진다. 과거엔 이 403 을 GitHub runner IP 차단으로
+//    오인해 CI 자동 갱신(cron)을 꺼 두었는데, 실제 원인의 최소 일부는 이
+//    Origin 헤더였다. CI 재활성화를 고려한다면 이 헤더 제거가 선행 조건.
 const UPSTREAM_USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 const UPSTREAM_REFERER = "https://tr.game.onstove.com/";
-const UPSTREAM_ORIGIN = "https://tr.game.onstove.com";
 const DELAY_MS = 300;
 const RETRIES = 2;
 
@@ -50,9 +54,10 @@ interface UpstreamListResponse {
 interface UpstreamDetailItem {
   itemId: number;
   id: number;
-  viewOrder: number;
+  // 영상(category 2) 패널은 imageUrl·viewOrder 가 null 이고 movieUrl 만 있다.
+  viewOrder: number | null;
   movieUrl: string | null;
-  imageUrl: string;
+  imageUrl: string | null;
   comments: string;
 }
 
@@ -80,7 +85,7 @@ async function upstream<T>(path: string, attempt = 0): Promise<T | null> {
         Accept: "application/json, text/plain, */*",
         "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
         Referer: UPSTREAM_REFERER,
-        Origin: UPSTREAM_ORIGIN,
+        // NOTE: Origin 은 의도적으로 생략 — 붙이면 403. 상단 주석 참고.
       },
     });
     if (!res.ok) {
@@ -110,7 +115,77 @@ interface OutputStory {
   openYear: string;
   hashTagSubject: string;
   thumbnail: string;
-  images: { imageUrl: string; movieUrl: string | null; viewOrder: number }[];
+  // 영상 패널은 imageUrl·viewOrder 가 null (movieUrl 만 존재).
+  images: {
+    imageUrl: string | null;
+    movieUrl: string | null;
+    viewOrder: number | null;
+  }[];
+}
+
+// ── 런타임 스키마 검증 ──────────────────────────────────────────────
+// src/lib/api.ts 는 stories.json 을 `as StoryDetail[]` 로 캐스팅만 하고
+// (무검증) 런타임에 쓰므로, 업스트림 응답 형태가 바뀌면 깨진 데이터가
+// 조용히 굳어 그대로 배포까지 흘러간다. 그 드리프트를 스냅샷으로 "굳히기
+// 전에" 여기서 잡는다. 형태가 어긋나면 던져서 빌드/페치를 실패시킨다.
+class SchemaError extends Error {}
+
+function isNonEmptyString(v: unknown): v is string {
+  return typeof v === "string" && v.length > 0;
+}
+
+function validateListResponse(
+  res: UpstreamListResponse
+): asserts res is UpstreamListResponse {
+  if (!res || !Array.isArray(res.list)) {
+    throw new SchemaError("list 응답에 result.list 배열이 없음");
+  }
+  for (const g of res.list) {
+    if (!isNonEmptyString(g.openYear) || !Array.isArray(g.itemList)) {
+      throw new SchemaError(
+        `연도 그룹 형태 이상: ${JSON.stringify(g).slice(0, 120)}`
+      );
+    }
+    for (const it of g.itemList) {
+      if (
+        typeof it.id !== "number" ||
+        !isNonEmptyString(it.subject) ||
+        typeof it.category !== "number" ||
+        !isNonEmptyString(it.openDt) ||
+        typeof it.thumbnail !== "string"
+      ) {
+        throw new SchemaError(
+          `list item 형태 이상: ${JSON.stringify(it).slice(0, 160)}`
+        );
+      }
+    }
+  }
+}
+
+// detail 은 개별 실패를 관용한다(누락 회차는 공식 페이지 폴백). 단, 응답이
+// 왔는데 "형태"가 어긋나면(패널에 imageUrl/viewOrder 가 없음) 조용히 넘기지
+// 않고 던진다 — 그건 개별 누락이 아니라 API 계약 변경 신호이기 때문.
+function validateDetail(
+  res: UpstreamDetailResponse,
+  id: number
+): UpstreamDetailResponse | null {
+  if (!res || !res.info || !Array.isArray(res.info.itemList)) {
+    console.warn(`\n  ⚠ detail(${id}) result.info.itemList 없음 — 이미지 0`);
+    return null;
+  }
+  // 각 패널은 imageUrl(웹툰) 또는 movieUrl(영상) 중 하나는 반드시 렌더 가능
+  // 해야 한다. 영상 패널은 imageUrl·viewOrder 가 null 이므로 그건 허용하되,
+  // 둘 다 없는 패널은 계약 위반으로 던진다.
+  for (const it of res.info.itemList) {
+    const hasImage = isNonEmptyString(it.imageUrl);
+    const hasMovie = isNonEmptyString(it.movieUrl);
+    if (!hasImage && !hasMovie) {
+      throw new SchemaError(
+        `detail(${id}) 패널에 imageUrl·movieUrl 이 모두 없음: ${JSON.stringify(it).slice(0, 160)}`
+      );
+    }
+  }
+  return res;
 }
 
 async function main() {
@@ -122,6 +197,7 @@ async function main() {
     console.error("List fetch failed.");
     process.exit(1);
   }
+  validateListResponse(list);
 
   const items: { item: UpstreamListYear["itemList"][0]; openYear: string }[] =
     [];
@@ -133,6 +209,7 @@ async function main() {
   console.log(`  found ${items.length} stories; fetching details…`);
 
   const out: OutputStory[] = [];
+  let emptyCount = 0;
   let i = 0;
   for (const { item, openYear } of items) {
     i++;
@@ -141,14 +218,16 @@ async function main() {
     const detail = await upstream<UpstreamDetailResponse>(
       `/trlibrary/trstory/${item.id}`
     );
-    const images = (detail?.info?.itemList ?? [])
+    const validDetail = detail ? validateDetail(detail, item.id) : null;
+    const images = (validDetail?.info?.itemList ?? [])
       .slice()
-      .sort((a, b) => a.viewOrder - b.viewOrder)
+      .sort((a, b) => (a.viewOrder ?? 0) - (b.viewOrder ?? 0))
       .map((x) => ({
         imageUrl: x.imageUrl,
         movieUrl: x.movieUrl,
         viewOrder: x.viewOrder,
       }));
+    if (images.length === 0) emptyCount++;
     out.push({
       id: item.id,
       subject: item.subject,
@@ -161,6 +240,20 @@ async function main() {
     });
   }
   process.stdout.write("\n");
+
+  // 대량 실패 방어: 상당수가 이미지 0 이면 업스트림 장애로 보고, 기존
+  // stories.json 스냅샷을 "덮어쓰지 않고" 중단한다. 이게 없으면 업스트림이
+  // 잠시 흔들린 순간에 페치가 멀쩡한 스냅샷을 빈 데이터로 갈아엎을 수 있다.
+  if (emptyCount > 0) {
+    console.warn(`  ⚠ ${emptyCount}/${out.length} 편이 이미지 0 개`);
+  }
+  if (out.length > 0 && emptyCount > out.length / 2) {
+    console.error(
+      `✖ 이미지 없는 편이 과반(${emptyCount}/${out.length}) — 업스트림 장애로 판단. ` +
+        `기존 stories.json 을 보존하고 중단합니다.`
+    );
+    process.exit(1);
+  }
 
   const root = join(new URL(".", import.meta.url).pathname, "..");
   const outPath = join(root, "src", "data", "stories.json");
