@@ -6,6 +6,7 @@ import {
   getReadTimeline,
   getSeriesCards,
   getSeriesCounts,
+  getSeriesReadCounts,
   getSeriesProgress,
   getStoryNavigation,
   getTimedStories,
@@ -159,10 +160,11 @@ describe("story selectors", () => {
   it("builds series cards and progress from shared series definitions", () => {
     const readIds = new Set([1, 3]);
     const seriesCounts = getSeriesCounts(stories);
+    const seriesReadCounts = getSeriesReadCounts(stories, readIds);
     const cards = getSeriesCards({
       filtered: stories,
-      readIds,
       seriesCounts,
+      seriesReadCounts,
       sort: "desc",
     });
 
@@ -174,6 +176,24 @@ describe("story selectors", () => {
       { label: "언더월드", total: 1, read: 1, percent: 100 },
       { label: "라라의 이야기", total: 3, read: 1, percent: 33 },
     ]);
+  });
+
+  it("series card counts read/total series-wide, not just within the filtered view", () => {
+    const readIds = new Set([1, 3]); // 라라 id1 · 언더월드 id3 읽음
+    const seriesCounts = getSeriesCounts(stories);
+    const seriesReadCounts = getSeriesReadCounts(stories, readIds);
+    // 필터로 라라 시리즈 중 "안 읽은" 회차 하나(id 2)만 남긴 상황
+    const filtered = stories.filter((s) => s.id === 2);
+    const cards = getSeriesCards({
+      filtered,
+      seriesCounts,
+      seriesReadCounts,
+      sort: "desc",
+    });
+    const lara = cards.find((c) => c.label === "라라의 이야기");
+    expect(lara?.count).toBe(1); // 화면에 보이는 건 1편
+    expect(lara?.totalCount).toBe(3); // 시리즈 전체는 3편
+    expect(lara?.readCount).toBe(1); // 전역 읽음 1편 (filtered 스코프였다면 0)
   });
 
   it("groups visible stories using the selected sort direction", () => {

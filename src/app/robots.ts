@@ -1,9 +1,7 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/constants";
 
 export const dynamic = "force-static";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://tales-runner.github.io/TR-STORY";
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { SITE_URL } from "@/lib/constants";
 import "./globals.css";
-
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "https://tales-runner.github.io/TR-STORY";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
