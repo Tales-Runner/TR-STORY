@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { formatDate, parseHashTags } from "@/lib/format";
+import { PROGRESS } from "@/lib/progress";
 import { STORY_CATEGORY, STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryListItem } from "@/lib/types";
 import type { SeriesCardData } from "@/lib/story-selectors";
@@ -423,7 +424,7 @@ export function StoryRow({
         </button>
       </div>
 
-      {progress > 0.02 && progress < 0.99 && !read && (
+      {progress > PROGRESS.NOISE_FLOOR && progress < PROGRESS.BAR_MAX && !read && (
         <div
           className="absolute left-0 top-[88px] w-[136px] h-[3px] bg-black/10 overflow-hidden rounded-b-lg"
           aria-hidden

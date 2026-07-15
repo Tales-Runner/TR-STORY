@@ -153,8 +153,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   // (filtered 안에서) 가장 최신 회차 썸네일. 시리즈 라벨이 없는 회차는 "기타"
   // 버킷으로 묶음.
   const seriesCards = useMemo<SeriesCardData[]>(
-    () => getSeriesCards({ filtered, readIds, seriesCounts, sort }),
-    [filtered, readIds, seriesCounts, sort]
+    () => getSeriesCards({ filtered, seriesCounts, seriesReadCounts, sort }),
+    [filtered, seriesCounts, seriesReadCounts, sort]
   );
 
   // ── Infinite scroll (회차 뷰 전용) ──────────────────────────────────

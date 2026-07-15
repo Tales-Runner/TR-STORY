@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, type StoryEntry } from "./db";
+import { PROGRESS } from "./progress";
 
 export interface ReadStatus {
   readIds: Set<number>;
@@ -86,7 +87,10 @@ export function useReadStatus(): ReadStatus {
       if (e.readAt > 0) reads.add(e.id);
       if ((e.favoritedAt ?? 0) > 0) favs.add(e.id);
       if ((e.bookmarkedAt ?? 0) > 0) bookmarks.add(e.id);
-      if (typeof e.scrollProgress === "number" && e.scrollProgress > 0.02) {
+      if (
+        typeof e.scrollProgress === "number" &&
+        e.scrollProgress > PROGRESS.NOISE_FLOOR
+      ) {
         prog.set(e.id, e.scrollProgress);
       }
     }

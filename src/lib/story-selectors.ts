@@ -1,4 +1,5 @@
 import type { StoryEntry } from "./db";
+import { PROGRESS } from "./progress";
 import { seriesLabel, SERIES_REPRESENTATIVE_ID } from "./series";
 import type { StoryDetail, StoryListItem } from "./types";
 
@@ -152,7 +153,7 @@ export function filterStories({
   if (continueOnly && ready) {
     list = list.filter((s) => {
       const p = progress.get(s.id) ?? 0;
-      return p > 0.02 && p < 0.95 && !readIds.has(s.id);
+      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX && !readIds.has(s.id);
     });
   }
   if (bookmarkOnly && ready) {
@@ -170,7 +171,7 @@ export function getContinueReading(
   return stories
     .filter((s) => {
       const p = progress.get(s.id) ?? 0;
-      return p > 0.02 && p < 0.95 && !readIds.has(s.id);
+      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX && !readIds.has(s.id);
     })
     .sort((a, b) => (progress.get(b.id) ?? 0) - (progress.get(a.id) ?? 0))
     .slice(0, limit);
@@ -182,13 +183,13 @@ function isSentinelSeries(label: string): boolean {
 
 export function getSeriesCards({
   filtered,
-  readIds,
   seriesCounts,
+  seriesReadCounts,
   sort,
 }: {
   filtered: StoryListItem[];
-  readIds: Set<number>;
   seriesCounts: Map<string, number>;
+  seriesReadCounts: Map<string, number>;
   sort: SortOrder;
 }): SeriesCardData[] {
   const buckets = new Map<string, StoryListItem[]>();
@@ -209,15 +210,14 @@ export function getSeriesCards({
     const rep =
       (overrideId !== undefined && sorted.find((s) => s.id === overrideId)) ||
       latest;
-    const readInFiltered = sorted.reduce(
-      (acc, s) => (readIds.has(s.id) ? acc + 1 : acc),
-      0
-    );
     result.push({
       label,
       count: sorted.length,
+      // totalCount 와 readCount 는 둘 다 전역(시리즈 전체) 기준으로 맞춘다.
+      // 예전엔 readCount 만 filtered 버킷 기준이라, 연도/검색 필터 시
+      // "2 / 15" 처럼 분자·분모 스코프가 달라 오해를 줬다.
       totalCount: seriesCounts.get(label) ?? sorted.length,
-      readCount: readInFiltered,
+      readCount: seriesReadCounts.get(label) ?? 0,
       latestDt: latest.openDt,
       latestThumbnail: rep.thumbnail,
       sampleStory: rep,

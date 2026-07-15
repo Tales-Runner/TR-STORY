@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { db } from "@/lib/db";
+import { PROGRESS } from "@/lib/progress";
 
 interface Options {
   storyId: number;
@@ -39,7 +40,7 @@ export function useScrollRestore({
   onMarkRead,
   onResumeFromPercent,
   isRead,
-  readThreshold = 0.8,
+  readThreshold = PROGRESS.READ_MARK,
 }: Options): Result {
   const [scrollProgress, setScrollProgress] = useState(0);
   const markedReadRef = useRef(false);
@@ -64,7 +65,11 @@ export function useScrollRestore({
     db.stories.get(storyId).then((entry) => {
       if (cancelled) return;
       const progress = entry?.scrollProgress;
-      if (typeof progress === "number" && progress > 0.05 && progress < 0.95) {
+      if (
+        typeof progress === "number" &&
+        progress > PROGRESS.RESUME_MIN &&
+        progress < PROGRESS.RESUME_MAX
+      ) {
         requestAnimationFrame(() => {
           const el = scrollRef.current;
           if (el)
@@ -87,7 +92,7 @@ export function useScrollRestore({
       // Only persist if the user actually scrolled this story. Writing 0 on
       // every navigation would clobber a meaningful saved position from a
       // previous session (e.g. user opens a story, taps close immediately).
-      if (progress <= 0.02) return;
+      if (progress <= PROGRESS.NOISE_FLOOR) return;
       db.stories.updateProgress(capturedId, progress);
     };
   }, [storyId]);

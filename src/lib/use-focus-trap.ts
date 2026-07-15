@@ -81,5 +81,10 @@ function getFocusable(root: HTMLElement): HTMLElement[] {
   return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
     .filter((el) => !el.hasAttribute("disabled"))
     .filter((el) => el.getAttribute("aria-hidden") !== "true")
-    .filter((el) => el.offsetParent !== null || el === document.activeElement);
+    // 가시성 판정에 offsetParent 대신 getClientRects() 를 쓴다. offsetParent 는
+    // position:fixed 조상 안 요소에 대해 null 이 될 수 있어(이 앱의 모달·드로어가
+    // 전부 fixed) 보이는 요소가 focusable 후보에서 잘못 빠졌다.
+    .filter(
+      (el) => el.getClientRects().length > 0 || el === document.activeElement
+    );
 }
