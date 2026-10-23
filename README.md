@@ -84,20 +84,20 @@ npm run typecheck && npm run lint && npm test && npm run build
 - **push** to `main` — 코드 / 데이터 변경 시 즉시 배포.
 - **workflow_dispatch** — Actions 탭에서 수동 trigger (페치 재시도용).
 
-빌드 단계에서 `npm run fetch-data` 는 **best-effort** 로만 시도하고,
-실패하면 커밋된 `src/data/stories.json` 스냅샷으로 그대로 빌드를 진행
-한다 (`continue-on-error: true`). 그 다음
+push 빌드에서는 `npm run fetch-data` 를 **best-effort** 로 시도하고,
+실패하면 커밋된 `src/data/stories.json` 스냅샷으로 빌드를 진행한다.
+반면 `workflow_dispatch` 수동 갱신에서는 수집 실패 시 작업도 실패시켜
+갱신 성공으로 오해하지 않게 한다. 두 경우 모두 Actions Summary 에
+수집 결과·마지막 전체 검증 시각·편수·최신 회차 날짜를 기록한다. 그 다음
 `NEXT_PUBLIC_BASE_PATH=/TR-STORY` 로 `output: "export"` 빌드,
 `out/` 을 `actions/deploy-pages` 가 GitHub Pages 에 올린다.
 
 저장소 설정에서 **Settings → Pages → Source: GitHub Actions** 만 한 번
 켜주면 된다.
 
-### 왜 cron 이 없는가
-`tr.rhaon.co.kr` 이 GitHub-hosted runner IP 대역을 403 Forbidden 으로
-차단한다. 따라서 CI 안에서 새 데이터를 끌어올 수 없다 (tr-archive 가
-Vercel 배포에서 분기별 수동 재배포 부담을 겪는 것도 같은 원인일 가능성
-이 매우 높다). 새 회차가 올라오면 **로컬에서** 데이터만 갱신한다:
+### 데이터 갱신과 실패 진단
+현재 예약 실행(cron)은 없다. push 또는 수동 실행이 없으면 새 회차를
+확인하지 않는다. 로컬 갱신 방법:
 
 ```bash
 npm run fetch-data
@@ -105,6 +105,14 @@ git commit -am "data: refresh stories"
 git push
 ```
 push 가 곧 배포 트리거이므로 별도 작업 없이 사이트에 반영된다.
+
+`fetch-data` 는 전체 목록과 모든 상세를 검증한 뒤 두 JSON 을 저장한다.
+빈 목록·중복 ID·상세 수집 실패·잘못된 패널은 실패로 처리하며, 수집에
+실패하면 기존 스냅샷과 확인 시각을 보존한다. 요청별 제한 시간은 20초,
+재시도는 최대 2회다. Windows/공백/한글 경로도 파일 URL 변환으로 처리한다.
+`updatedAt` 은 **공식 데이터를 마지막으로 전체 확인한 시각**이고,
+`latestOpenDt` 는 **최신 회차 공개일**이다. 새 회차가 없어도 확인 시각은 바뀐다.
+
 
 ## 면책
 - 본 프로젝트는 **비공식 미러** 이며, 모든 콘텐츠 권리는 RHAON
