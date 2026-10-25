@@ -75,6 +75,20 @@ export function StoryViewer({
   // through the inner dialog's buttons too.
   useFocusTrap(!showDrawer && !showHelp, rootRef, closeBtnRef);
 
+  useEffect(() => {
+    const revealForKeyboard = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || barVisible || showDrawer || showHelp) return;
+      // Run before the focus trap and browser default, which would otherwise
+      // jump to the footer while the toolbar controls are inert.
+      event.preventDefault();
+      event.stopPropagation();
+      setBarVisible(true);
+      requestAnimationFrame(() => closeBtnRef.current?.focus({ preventScroll: true }));
+    };
+    document.addEventListener("keydown", revealForKeyboard, true);
+    return () => document.removeEventListener("keydown", revealForKeyboard, true);
+  }, [barVisible, showDrawer, showHelp]);
+
   // Reset auto-hide timer on every story change so each navigation gets a
   // fresh hide cycle (was previously empty-deps → only fired once on mount).
   // setState is the intended sync to the new "story" external input.
