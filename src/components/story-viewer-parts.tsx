@@ -6,6 +6,7 @@ import { formatDate, isSafeImageUrl, youtubeId } from "@/lib/format";
 import { WebtoonImage } from "./webtoon-image";
 
 export function ViewerTopBar({
+  visible,
   titleId,
   story,
   yearLabel,
@@ -18,6 +19,7 @@ export function ViewerTopBar({
   isBookmarked,
   onToggleBookmark,
 }: {
+  visible: boolean;
   titleId: string;
   story: StoryDetail;
   yearLabel: string;
@@ -32,6 +34,8 @@ export function ViewerTopBar({
 }) {
   return (
     <div
+      data-viewer-toolbar
+      inert={!visible}
       className={`absolute top-0 left-0 right-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#13101f]/95 backdrop-blur-md px-3 py-2 transition-all duration-200 ${barClassTop}`}
       style={{ paddingTop: "calc(0.5rem + env(safe-area-inset-top, 0px))" }}
     >
@@ -122,7 +126,7 @@ export function ViewerTopBar({
   );
 }
 
-export function ViewerMedia({ story }: { story: StoryDetail }) {
+export function ViewerMedia({ story, restoreThrough = -1 }: { story: StoryDetail; restoreThrough?: number }) {
   const hasVideo = story.images.some((img) => img.movieUrl);
   const videoUrl = story.images.find((img) => img.movieUrl)?.movieUrl;
   const vid = videoUrl ? youtubeId(videoUrl.trim()) : null;
@@ -152,7 +156,8 @@ export function ViewerMedia({ story }: { story: StoryDetail }) {
             key={`${story.id}-${i}`}
             src={img.imageUrl}
             alt={`${story.subject} - ${i + 1}`}
-            priority={i < 2}
+            panel={i}
+            priority={i < 2 || i <= restoreThrough}
           />
         ))}
     </div>
@@ -224,6 +229,7 @@ export function ViewerEndCta({
 }
 
 export function ViewerBottomBar({
+  visible,
   barClass,
   scrollProgress,
   siblings,
@@ -235,6 +241,7 @@ export function ViewerBottomBar({
   onPrev,
   onNext,
 }: {
+  visible: boolean;
   barClass: string;
   scrollProgress: number;
   siblings: StoryListItem[];
@@ -248,6 +255,8 @@ export function ViewerBottomBar({
 }) {
   return (
     <div
+      data-viewer-toolbar
+      inert={!visible}
       className={`absolute bottom-0 left-0 right-0 z-10 border-t border-white/10 bg-[#13101f]/95 backdrop-blur-md transition-all duration-200 ${barClass}`}
       style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       onClick={(e) => e.stopPropagation()}

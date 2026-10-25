@@ -22,9 +22,11 @@ import {
   groupByYear,
   groupVisibleStories,
   type SeriesCardData,
-  type SortOrder,
 } from "@/lib/story-selectors";
 import { BottomNav } from "./bottom-nav";
+import { useHomeFilters } from "@/lib/use-home-filters";
+import { useClientNow } from "@/lib/use-client-now";
+import { readListReturn, rememberList } from "@/lib/list-navigation";
 import {
   FilterSelect,
   SeriesCard,
@@ -37,24 +39,13 @@ import {
 const PAGE_SIZE = 12;
 
 export function HomeShell({ stories }: { stories: StoryListItem[] }) {
-  // Avoid useSearchParams: it requires a Suspense boundary, and the
-  // boundary noticeably delays hydration of the card grid — first-time
-  // mobile visitors tapped cards and nothing happened because Link's
-  // client-side router wasn't ready yet. Read query params once in an
-  // effect instead.
-  const [q, setQ] = useState("");
-  const [yearFilter, setYearFilter] = useState<string>("all");
-  const [seriesFilter, setSeriesFilter] = useState<string>("all");
-  const [unreadOnly, setUnreadOnly] = useState(false);
-  // 진행 중인 회차만 (스크롤 진행률 0.02~0.95 + 미완독).
-  const [continueOnly, setContinueOnly] = useState(false);
-  // 책갈피 표시한 회차만.
-  const [bookmarkOnly, setBookmarkOnly] = useState(false);
-  const [sort, setSort] = useState<SortOrder>("desc");
-  // 메인 화면 기본 보기는 "시리즈 카드" — 웹툰 앱 표준 패턴. 사용자가 "회차"
-  // 탭을 누르면 기존의 연도별 회차 리스트를 본다. 시리즈 필터를 켜면 자연스럽게
-  // 회차 뷰로 전환됨(applySheet 참고).
-  const [view, setView] = useState<"series" | "episode">("series");
+  const { filters, update, loaded: filtersLoaded } = useHomeFilters();
+  const { q, year: yearFilter, series: seriesFilter, sort, view } = filters;
+  const unreadOnly = filters.status === "unread";
+  const continueOnly = filters.status === "continue";
+  const bookmarkOnly = filters.status === "bookmark";
+  const now = useClientNow();
+  const [showFilters, setShowFilters] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // First-visit hint about the read/favorite buttons. Shown once,
@@ -78,26 +69,13 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const sp = new URLSearchParams(window.location.search);
-    const qParam = sp.get("q");
-    const yearParam = sp.get("year");
-    const seriesParam = sp.get("series");
-    // Loading URL query is an external-state sync at mount, not derived
-    // state; suppress the overzealous in-effect-setState rule here.
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (qParam !== null) setQ(qParam);
-    if (yearParam !== null) setYearFilter(yearParam);
-    if (seriesParam !== null) setSeriesFilter(seriesParam);
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
 
   const {
     readIds,
     favoriteIds,
     bookmarkIds,
     progress,
+    lastReadAt,
     ready,
     toggleFavorite,
     toggleBookmark,
@@ -193,12 +171,11 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     return () => observer.disconnect();
   }, [hasMore, visibleCount]);
 
-  // "이어 읽기" 후보: 스크롤 진행은 있는데 아직 읽음 마킹 안 된 회차.
-  // 최근에 본 것이 위에 오도록 progress 큰 순으로.
+  // Unfinished episodes, ordered by the most recent reading checkpoint.
   const continueReading = useMemo(() => {
     if (!ready) return [];
-    return getContinueReading(stories, progress, readIds, 6);
-  }, [stories, progress, readIds, ready]);
+    return getContinueReading(stories, progress, lastReadAt, 3);
+  }, [stories, progress, lastReadAt, ready]);
 
   // 어떤 필터/검색도 적용 안 됐을 때만 "이어 읽기" 보여줌.
   const isFreshList =
@@ -238,29 +215,53 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
   const yearChoices = allGroups.map((g) => g.label);
 
-  // 시리즈를 고르면 회차 순서대로 보는 게 자연스러우니 sort=asc + 회차 뷰 전환.
-  // 풀면 다시 최신순으로.
-  const handleSeriesFilter = useCallback((v: string) => {
-    setSeriesFilter(v);
-    if (v === "all") {
-      setSort("desc");
-    } else {
-      setSort("asc");
-      setView("episode");
-    }
-  }, []);
+  const handleSeriesFilter = useCallback((value: string) => {
+    update({ series: value, sort: value === "all" ? "desc" : "asc",
+      view: value === "all" ? "series" : "episode" }, true);
+  }, [update]);
 
   const openSeries = useCallback((label: string) => {
-    setSeriesFilter(label);
-    setSort("asc");
-    setView("episode");
-  }, []);
+    update({ series: label, sort: "asc", view: "episode", q: "", year: "all", status: "all" }, true);
+    window.scrollTo(0, 0);
+  }, [update]);
+
+  useEffect(() => {
+    if (!filtersLoaded) return;
+    const saved = readListReturn();
+    if (saved?.href === window.location.pathname + window.location.search) {
+      // Restore the expanded episode list before its scroll offset.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVisibleCount(Math.max(PAGE_SIZE, Math.min(stories.length, saved.visibleCount)));
+    }
+  }, [filtersLoaded, stories.length]);
+
+  const restoredList = useRef(false);
+  useEffect(() => {
+    if (!filtersLoaded || !ready || restoredList.current) return;
+    const saved = readListReturn();
+    if (!saved || saved.href !== window.location.pathname + window.location.search) return;
+    if (view === "episode" && visibleCount < Math.min(filtered.length, saved.visibleCount)) return;
+    const frame = requestAnimationFrame(() => {
+      window.scrollTo(0, saved.scrollY);
+      restoredList.current = true;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [filtersLoaded, ready, visibleCount, filtered.length, view]);
+
+  const selectedSeries = seriesFilter === "all" ? [] : stories
+    .filter((story) => seriesLabel(story) === seriesFilter)
+    .sort((a, b) => a.openDt.localeCompare(b.openDt) || a.id - b.id);
+  const firstEpisode = selectedSeries.find((story) => story.hasImages);
+  const resumeEpisode = getContinueReading(selectedSeries, progress, lastReadAt, 1)[0];
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
   return (
-    <div className="mx-auto w-full max-w-[1280px] pb-28 md:pb-12">
-      {/* Slim sticky header — 로고 + 검색 + 필터버튼 + 데스크탑 마이페이지 링크.
-          연도/시리즈/정렬/안 읽음/즐겨찾기 5개는 FilterSheet 로 이동.
-          본문 카드들이 borderless 라 header 도 underline 1 줄로만 분리. */}
+    <div className="mx-auto w-full max-w-[1280px] pb-28 md:pb-12"
+      onClickCapture={(event) => {
+        const link = (event.target as Element).closest("a");
+        if (link?.getAttribute("href")?.startsWith(basePath + "/stories/")) rememberList(visibleCount);
+      }}>
+      {/* Search and view switch stay visible; secondary filters expand on demand. */}
       <header className="sticky top-0 z-30 bg-white">
         <div className="flex items-center gap-2 px-4 py-2.5">
           <Link
@@ -278,7 +279,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             <input
               type="search"
               value={q}
-              onChange={(e) => setQ(e.target.value)}
+              onChange={(e) => update({ q: e.target.value })}
               placeholder="제목·태그 검색"
               aria-label="제목·태그 검색"
               className="w-full rounded-full bg-[var(--color-surface-alt)] pl-9 pr-8 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[var(--color-text)]/10"
@@ -300,7 +301,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </svg>
             {q && (
               <button
-                onClick={() => setQ("")}
+                onClick={() => update({ q: "" })}
                 aria-label="검색어 지우기"
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1"
               >
@@ -335,13 +336,14 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </Link>
         </div>
 
-        {/* 윗줄: 연도 / 시리즈 selects (좌측) + 정렬 (우측). */}
+        <div id="home-filters" hidden={!showFilters}>
+        {/* Secondary filters expand on demand. */}
         <div className="flex items-center gap-2 px-3 pb-2">
           <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar">
             <div className="flex items-center gap-1.5 min-w-max">
               <FilterSelect
                 value={yearFilter}
-                onChange={setYearFilter}
+                onChange={(year) => update({ year })}
                 ariaLabel="연도"
                 options={[
                   { value: "all", label: "전체 연도" },
@@ -361,7 +363,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </div>
           <button
             type="button"
-            onClick={() => setSort((s) => (s === "desc" ? "asc" : "desc"))}
+            onClick={() => update({ sort: sort === "desc" ? "asc" : "desc" })}
             aria-pressed={sort === "asc"}
             title={
               sort === "desc"
@@ -398,13 +400,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           <div className="flex items-center gap-1.5 min-w-max">
             <StatusToggle
               active={continueOnly}
-              onClick={() => {
-                setContinueOnly((v) => !v);
-                if (!continueOnly) {
-                  setUnreadOnly(false);
-                  setBookmarkOnly(false);
-                }
-              }}
+              onClick={() => update({ status: filters.status === "continue" ? "all" : "continue" })}
               accent="dark"
               icon={
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -421,13 +417,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </StatusToggle>
             <StatusToggle
               active={unreadOnly}
-              onClick={() => {
-                setUnreadOnly((v) => !v);
-                if (!unreadOnly) {
-                  setContinueOnly(false);
-                  setBookmarkOnly(false);
-                }
-              }}
+              onClick={() => update({ status: filters.status === "unread" ? "all" : "unread" })}
               accent="dark"
               icon={
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
@@ -458,13 +448,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
             </StatusToggle>
             <StatusToggle
               active={bookmarkOnly}
-              onClick={() => {
-                setBookmarkOnly((v) => !v);
-                if (!bookmarkOnly) {
-                  setUnreadOnly(false);
-                  setContinueOnly(false);
-                }
-              }}
+              onClick={() => update({ status: filters.status === "bookmark" ? "all" : "bookmark" })}
               accent="dark"
               icon={
                 <svg
@@ -487,33 +471,39 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </div>
         </div>
 
-        {/* View tabs — 시리즈 / 회차. 네이버웹툰 식 underline 탭. */}
+        </div>
+        {/* View tabs */}
         <div className="flex items-end px-4 border-b border-[var(--color-border)]">
           <ViewTab
             active={view === "series"}
-            onClick={() => setView("series")}
+            onClick={() => update({ view: "series", series: "all" }, true)}
             count={seriesCards.length}
           >
             시리즈
           </ViewTab>
           <ViewTab
             active={view === "episode"}
-            onClick={() => setView("episode")}
+            onClick={() => update({ view: "episode" }, true)}
             count={filtered.length}
           >
             회차
           </ViewTab>
+          <button type="button" aria-expanded={showFilters} aria-controls="home-filters"
+            onClick={() => setShowFilters((shown) => !shown)}
+            className="ml-auto min-h-11 px-3 text-sm text-[var(--color-text-soft)]">
+            {showFilters ? "필터 닫기" : "필터"}{(yearFilter !== "all" || filters.status !== "all") && " · 적용 중"}
+          </button>
         </div>
       </header>
 
-      {daysAgo(dataMeta.updatedAt) >= 30 && (
+      {now !== null && daysAgo(dataMeta.updatedAt, now) >= 30 && (
         <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-[12px] leading-snug text-amber-800">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
             <path d="M12 2L2 22h20L12 2z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
             <path d="M12 9v6M12 17.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <div className="flex-1">
-            데이터가 {relativeDays(dataMeta.updatedAt)} 기준입니다. 그동안
+            데이터가 {relativeDays(dataMeta.updatedAt, now ?? 0)} 기준입니다. 그동안
             새로 올라온 회차는 빠져 있을 수 있어요.{" "}
             <a
               href="https://tr.game.onstove.com/archive/trstory"
@@ -527,16 +517,14 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
       )}
 
-      {showOnboarding && (
+      {showOnboarding && isFreshList && (
         <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-[12px] leading-snug text-[var(--color-brand-strong)]">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8" />
             <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
           <div className="flex-1">
-            카드 우측의 <span className="font-bold">🔖 책갈피</span>로
-            표시해두기, <span className="font-bold">★ 별</span>로 즐겨찾기.
-            진행률은 자동 저장돼서 다시 들어가도 이어 읽기 가능.
+            시리즈를 선택해 첫 회차부터 읽어보세요. 읽던 위치는 이 기기에 자동으로 저장됩니다.
           </div>
           <button
             onClick={dismissOnboarding}
@@ -550,6 +538,26 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
       {/* Body */}
       <main className="px-4 pt-4">
+        {seriesFilter !== "all" && (
+          <section aria-label="선택한 시리즈" className="mb-6 space-y-3 border-b border-[var(--color-border)] pb-5">
+            <button onClick={() => update({ series: "all", view: "series", sort: "desc" }, true)}
+              className="min-h-11 text-sm text-[var(--color-text-soft)]">← 전체 시리즈</button>
+            <h1 className="text-2xl font-bold">{seriesFilter}</h1>
+            <p className="text-sm text-[var(--color-text-soft)]">
+              총 {selectedSeries.length}편 · {seriesReadCounts.get(seriesFilter) ?? 0}편 읽음
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {resumeEpisode && <Link href={"/stories/" + resumeEpisode.id + "/"}
+                className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-sm font-semibold text-white">
+                이어 읽기 · {Math.round((progress.get(resumeEpisode.id) ?? 0) * 100)}%
+              </Link>}
+              {firstEpisode && <Link href={"/stories/" + firstEpisode.id + "/?start=1"}
+                className="rounded-lg bg-[var(--color-brand-soft)] px-4 py-3 text-sm font-semibold text-[var(--color-brand-strong)]">
+                처음부터 읽기
+              </Link>}
+            </div>
+          </section>
+        )}
         {isFreshList && continueReading.length > 0 && (
           <section className="mb-8">
             <h2 className="mb-3 flex items-baseline gap-2 text-lg font-bold text-[var(--color-text)]">
@@ -672,9 +680,9 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               <span className="font-semibold text-[var(--color-text-soft)]">
                 {formatISODate(dataMeta.updatedAt)}
               </span>{" "}
-              ({relativeDays(dataMeta.updatedAt)})
+              {now !== null && "(" + relativeDays(dataMeta.updatedAt, now) + ")"}
             </span>
-            {daysAgo(dataMeta.updatedAt) >= 30 && (
+            {now !== null && daysAgo(dataMeta.updatedAt, now) >= 30 && (
               <>
                 {" · "}
                 <a

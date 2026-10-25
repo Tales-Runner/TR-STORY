@@ -153,7 +153,7 @@ export function filterStories({
   if (continueOnly && ready) {
     list = list.filter((s) => {
       const p = progress.get(s.id) ?? 0;
-      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX && !readIds.has(s.id);
+      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX;
     });
   }
   if (bookmarkOnly && ready) {
@@ -165,15 +165,15 @@ export function filterStories({
 export function getContinueReading(
   stories: StoryListItem[],
   progress: Map<number, number>,
-  readIds: Set<number>,
+  lastReadAt: Map<number, number>,
   limit: number
 ): StoryListItem[] {
   return stories
     .filter((s) => {
       const p = progress.get(s.id) ?? 0;
-      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX && !readIds.has(s.id);
+      return p > PROGRESS.NOISE_FLOOR && p < PROGRESS.CONTINUE_MAX;
     })
-    .sort((a, b) => (progress.get(b.id) ?? 0) - (progress.get(a.id) ?? 0))
+    .sort((a, b) => (lastReadAt.get(b.id) ?? 0) - (lastReadAt.get(a.id) ?? 0) || b.openDt.localeCompare(a.openDt))
     .slice(0, limit);
 }
 

@@ -9,6 +9,7 @@ export interface ReadStatus {
   favoriteIds: Set<number>;
   bookmarkIds: Set<number>;
   progress: Map<number, number>;
+  lastReadAt: Map<number, number>;
   /** Raw entries — needed by My Page for timeline / sorting by timestamp. */
   entries: StoryEntry[];
   ready: boolean;
@@ -78,12 +79,14 @@ export function useReadStatus(): ReadStatus {
     [refresh]
   );
 
-  const { readIds, favoriteIds, bookmarkIds, progress } = useMemo(() => {
+  const { readIds, favoriteIds, bookmarkIds, progress, lastReadAt } = useMemo(() => {
     const reads = new Set<number>();
     const favs = new Set<number>();
     const bookmarks = new Set<number>();
     const prog = new Map<number, number>();
+    const recent = new Map<number, number>();
     for (const e of entries) {
+      recent.set(e.id, e.lastReadAt ?? 0);
       if (e.readAt > 0) reads.add(e.id);
       if ((e.favoritedAt ?? 0) > 0) favs.add(e.id);
       if ((e.bookmarkedAt ?? 0) > 0) bookmarks.add(e.id);
@@ -99,6 +102,7 @@ export function useReadStatus(): ReadStatus {
       favoriteIds: favs,
       bookmarkIds: bookmarks,
       progress: prog,
+      lastReadAt: recent,
     };
   }, [entries]);
 
@@ -107,6 +111,7 @@ export function useReadStatus(): ReadStatus {
     favoriteIds,
     bookmarkIds,
     progress,
+    lastReadAt,
     entries,
     ready,
     toggleRead,

@@ -6,15 +6,15 @@ export function formatDate(yyyymmdd: string): string {
   return `${y}.${m}.${d}`;
 }
 
-export function daysAgo(iso: string): number {
+export function daysAgo(iso: string, now = Date.now()): number {
   const t = new Date(iso).getTime();
   if (!Number.isFinite(t)) return 0;
-  return Math.floor((Date.now() - t) / 86400000);
+  return Math.floor((now - t) / 86400000);
 }
 
 /** "오늘" / "3일 전" / "2달 전" 표기. iso 가 미래면 "오늘". */
-export function relativeDays(iso: string): string {
-  const d = daysAgo(iso);
+export function relativeDays(iso: string, now = Date.now()): string {
+  const d = daysAgo(iso, now);
   if (d <= 0) return "오늘";
   if (d < 30) return `${d}일 전`;
   if (d < 365) return `${Math.floor(d / 30)}달 전`;
@@ -25,10 +25,8 @@ export function relativeDays(iso: string): string {
 export function formatISODate(iso: string): string {
   const t = new Date(iso);
   if (!Number.isFinite(t.getTime())) return iso;
-  const y = t.getFullYear();
-  const m = String(t.getMonth() + 1).padStart(2, "0");
-  const d = String(t.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
+  // The archive uses Korean dates, independent of build/browser time zone.
+  return new Date(t.getTime() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
 export function parseHashTags(s: string): string[] {

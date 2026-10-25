@@ -1,59 +1,70 @@
-/**
- * IndexedDB — TR Story 읽기 진행률 추적.
- *
- * stories 스토어 하나만 둔다. id별로 readAt(읽음 마크 시점)과
- * scrollProgress(0~1)를 저장.
- */
-
 const DB_NAME = "tr-story";
-const DB_VERSION = 1;
 const STORE = "stories";
 
+export interface ReadingPosition { panel: number; offset: number }
 export interface StoryEntry {
   id: number;
-  /** Unix ms when auto-marked as read (80% scroll threshold). 0 = unread. */
   readAt: number;
   scrollProgress?: number;
-  /** Unix ms when favorited. 0/undefined = not favorited. */
+  position?: ReadingPosition;
+  lastReadAt?: number;
   favoritedAt?: number;
-  /** Unix ms when user manually bookmarked. 0/undefined = not bookmarked. */
   bookmarkedAt?: number;
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
-
 function open(): Promise<IDBDatabase> {
   if (typeof window === "undefined" || !("indexedDB" in window)) {
     return Promise.reject(new Error("indexedDB unavailable"));
   }
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+  dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => {
-      const idb = req.result;
-      if (!idb.objectStoreNames.contains(STORE)) {
-        idb.createObjectStore(STORE, { keyPath: "id" });
-      }
+      if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE, { keyPath: "id" });
     };
     req.onsuccess = () => {
       const idb = req.result;
-      idb.onversionchange = () => {
-        idb.close();
-        dbPromise = null;
-      };
+      idb.onversionchange = () => { idb.close(); dbPromise = null; };
       resolve(idb);
     };
     req.onerror = () => reject(req.error);
-  });
+  }).catch((error) => { dbPromise = null; throw error; });
   return dbPromise;
 }
 
 async function safe<T>(op: () => Promise<T>, fallback: T): Promise<T> {
-  try {
-    return await op();
-  } catch {
-    return fallback;
-  }
+  try { return await op(); } catch { return fallback; }
+}
+
+/** One transaction preserves other fields when reading and toggles overlap. */
+async function update<T>(id: number, change: (entry: StoryEntry) => T): Promise<T | null> {
+  return safe(async () => {
+    const idb = await open();
+    return new Promise<T>((resolve, reject) => {
+      const tx = idb.transaction(STORE, "readwrite");
+      const store = tx.objectStore(STORE);
+      const request = store.get(id);
+      let result: T;
+      request.onsuccess = () => {
+        const entry: StoryEntry = request.result ?? { id, readAt: 0 };
+        result = change(entry);
+        store.put(entry);
+      };
+      tx.oncomplete = () => resolve(result);
+      tx.onabort = tx.onerror = () => reject(tx.error ?? new Error("Storage transaction failed"));
+    });
+  }, null);
+}
+
+async function write(op: (store: IDBObjectStore) => void): Promise<void> {
+  const idb = await open();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction(STORE, "readwrite");
+    op(tx.objectStore(STORE));
+    tx.oncomplete = () => resolve();
+    tx.onabort = tx.onerror = () => reject(tx.error);
+  });
 }
 
 export const db = {
@@ -62,9 +73,8 @@ export const db = {
       return safe(async () => {
         const idb = await open();
         return new Promise<StoryEntry[]>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readonly");
-          const req = tx.objectStore(STORE).getAll();
-          req.onsuccess = () => resolve(req.result as StoryEntry[]);
+          const req = idb.transaction(STORE).objectStore(STORE).getAll();
+          req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
         });
       }, []);
@@ -73,188 +83,47 @@ export const db = {
       return safe(async () => {
         const idb = await open();
         return new Promise<StoryEntry | undefined>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readonly");
-          const req = tx.objectStore(STORE).get(id);
-          req.onsuccess = () => resolve(req.result as StoryEntry | undefined);
+          const req = idb.transaction(STORE).objectStore(STORE).get(id);
+          req.onsuccess = () => resolve(req.result);
           req.onerror = () => reject(req.error);
         });
       }, undefined);
     },
-    put(entry: StoryEntry): Promise<void> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<void>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          tx.objectStore(STORE).put(entry);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      }, undefined);
+    put: (entry: StoryEntry) => safe(() => write((store) => { store.put(entry); }), undefined),
+    remove: (id: number) => safe(() => write((store) => { store.delete(id); }), undefined),
+    clear: () => safe(() => write((store) => { store.clear(); }), undefined),
+    updateProgress(id: number, scrollProgress: number, position?: ReadingPosition) {
+      return update(id, (entry) => {
+        entry.scrollProgress = scrollProgress;
+        entry.lastReadAt = Date.now();
+        if (position) entry.position = position;
+        return true;
+      });
     },
-    remove(id: number): Promise<void> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<void>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          tx.objectStore(STORE).delete(id);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      }, undefined);
+    toggleReadAtomic(id: number) {
+      return update(id, (entry) => {
+        entry.readAt = entry.readAt > 0 ? 0 : Date.now();
+        return entry.readAt > 0;
+      });
     },
-    clear(): Promise<void> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<void>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          tx.objectStore(STORE).clear();
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      }, undefined);
+    toggleFavoriteAtomic(id: number) {
+      return update(id, (entry) => {
+        entry.favoritedAt = (entry.favoritedAt ?? 0) > 0 ? 0 : Date.now();
+        return entry.favoritedAt > 0;
+      });
     },
-
-    /**
-     * Atomic read-modify-write: update scrollProgress while preserving readAt.
-     * Done in a single IDB transaction so concurrent writes (e.g. mark-read)
-     * cannot interleave and clobber the readAt field.
-     */
-    updateProgress(id: number, scrollProgress: number): Promise<void> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<void>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
-          const getReq = store.get(id);
-          getReq.onsuccess = () => {
-            const existing = getReq.result as StoryEntry | undefined;
-            store.put({
-              id,
-              readAt: existing?.readAt ?? 0,
-              scrollProgress,
-              favoritedAt: existing?.favoritedAt,
-              bookmarkedAt: existing?.bookmarkedAt,
-            });
-          };
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      }, undefined);
+    toggleBookmarkAtomic(id: number) {
+      return update(id, (entry) => {
+        entry.bookmarkedAt = (entry.bookmarkedAt ?? 0) > 0 ? 0 : Date.now();
+        return entry.bookmarkedAt > 0;
+      });
     },
-
-    /**
-     * Atomic read-modify-write: toggle readAt while preserving scrollProgress.
-     * Returns the new read state (true = marked read).
-     */
-    toggleReadAtomic(id: number): Promise<boolean> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<boolean>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
-          const getReq = store.get(id);
-          let nextRead = false;
-          getReq.onsuccess = () => {
-            const existing = getReq.result as StoryEntry | undefined;
-            nextRead = !(existing && existing.readAt > 0);
-            store.put({
-              id,
-              readAt: nextRead ? Date.now() : 0,
-              scrollProgress: existing?.scrollProgress,
-              favoritedAt: existing?.favoritedAt,
-              bookmarkedAt: existing?.bookmarkedAt,
-            });
-          };
-          tx.oncomplete = () => resolve(nextRead);
-          tx.onerror = () => reject(tx.error);
-        });
-      }, false);
-    },
-
-    /**
-     * Atomic favorite toggle. Returns the new favorited state.
-     */
-    toggleFavoriteAtomic(id: number): Promise<boolean> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<boolean>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
-          const getReq = store.get(id);
-          let next = false;
-          getReq.onsuccess = () => {
-            const existing = getReq.result as StoryEntry | undefined;
-            next = !(existing && (existing.favoritedAt ?? 0) > 0);
-            store.put({
-              id,
-              readAt: existing?.readAt ?? 0,
-              scrollProgress: existing?.scrollProgress,
-              favoritedAt: next ? Date.now() : 0,
-              bookmarkedAt: existing?.bookmarkedAt,
-            });
-          };
-          tx.oncomplete = () => resolve(next);
-          tx.onerror = () => reject(tx.error);
-        });
-      }, false);
-    },
-
-    /**
-     * Atomic bookmark toggle. Returns the new bookmarked state.
-     */
-    toggleBookmarkAtomic(id: number): Promise<boolean> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<boolean>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
-          const getReq = store.get(id);
-          let next = false;
-          getReq.onsuccess = () => {
-            const existing = getReq.result as StoryEntry | undefined;
-            next = !(existing && (existing.bookmarkedAt ?? 0) > 0);
-            store.put({
-              id,
-              readAt: existing?.readAt ?? 0,
-              scrollProgress: existing?.scrollProgress,
-              favoritedAt: existing?.favoritedAt,
-              bookmarkedAt: next ? Date.now() : 0,
-            });
-          };
-          tx.oncomplete = () => resolve(next);
-          tx.onerror = () => reject(tx.error);
-        });
-      }, false);
-    },
-
-    /**
-     * Atomic mark-read (idempotent): sets readAt to now if not already > 0.
-     * Returns true if a write occurred, false if it was already read.
-     */
-    markReadAtomic(id: number): Promise<boolean> {
-      return safe(async () => {
-        const idb = await open();
-        return new Promise<boolean>((resolve, reject) => {
-          const tx = idb.transaction(STORE, "readwrite");
-          const store = tx.objectStore(STORE);
-          const getReq = store.get(id);
-          let wrote = false;
-          getReq.onsuccess = () => {
-            const existing = getReq.result as StoryEntry | undefined;
-            if (existing && existing.readAt > 0) return; // already read
-            store.put({
-              id,
-              readAt: Date.now(),
-              scrollProgress: existing?.scrollProgress,
-              favoritedAt: existing?.favoritedAt,
-              bookmarkedAt: existing?.bookmarkedAt,
-            });
-            wrote = true;
-          };
-          tx.oncomplete = () => resolve(wrote);
-          tx.onerror = () => reject(tx.error);
-        });
-      }, false);
+    markReadAtomic(id: number) {
+      return update(id, (entry) => {
+        if (entry.readAt > 0) return false;
+        entry.readAt = Date.now();
+        return true;
+      });
     },
   },
 };

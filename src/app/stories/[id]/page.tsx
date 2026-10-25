@@ -91,6 +91,7 @@ export default async function StoryPage({
 
   return (
     <StoryViewer
+      key={detail.id}
       story={detail}
       siblings={siblings}
       yearLabel={yearLabel}

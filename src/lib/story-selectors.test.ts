@@ -126,7 +126,7 @@ describe("story selectors", () => {
         bookmarkIds,
         progress,
       }).map((s) => s.id)
-    ).toEqual([1, 3]);
+    ).toEqual([1, 2, 3]);
 
     expect(
       filterStories({
@@ -145,16 +145,17 @@ describe("story selectors", () => {
     ).toEqual([3]);
   });
 
-  it("selects continue-reading stories by progress and unread state", () => {
+  it("keeps unfinished episodes and orders by the last reading time", () => {
     const progress = new Map([
       [1, 0.4],
       [2, 0.9],
       [3, 0.01],
-      [4, 0.96],
+      [4, 1],
     ]);
 
-    expect(getContinueReading(stories, progress, new Set([2]), 4).map((s) => s.id))
-      .toEqual([1]);
+    const recent = new Map([[1, 200], [2, 100]]);
+    expect(getContinueReading(stories, progress, recent, 4).map((s) => s.id))
+      .toEqual([1, 2]);
   });
 
   it("builds series cards and progress from shared series definitions", () => {

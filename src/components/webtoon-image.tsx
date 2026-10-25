@@ -10,10 +10,12 @@ export function WebtoonImage({
   src,
   alt,
   priority,
+  panel,
 }: {
   src: string;
   alt: string;
   priority?: boolean;
+  panel: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [inView, setInView] = useState(!!priority);
@@ -40,10 +42,13 @@ export function WebtoonImage({
   return (
     <div
       ref={ref}
+      data-panel={panel}
+      data-ready={loaded || errored}
+      data-loaded={loaded}
       className="w-full leading-[0] bg-[#0a0612]"
       style={{ minHeight: loaded ? undefined : 400 }}
     >
-      {inView && !errored && (
+      {(inView || priority) && !errored && (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={src}

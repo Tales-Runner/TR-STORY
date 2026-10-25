@@ -272,6 +272,7 @@ export function StoryRow({
     : `${OFFICIAL_STORY_BASE}/${story.id}`;
   const isVideo = story.category === STORY_CATEGORY.VIDEO;
   return (
+    <div className="relative">
     <a
       href={fullHref}
       {...(!hasImages
@@ -281,7 +282,7 @@ export function StoryRow({
         read ? "opacity-65" : ""
       }`}
     >
-      <div className="relative w-[136px] h-[92px] shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-alt)]">
+      <div className="relative w-[104px] h-[88px] shrink-0 overflow-hidden rounded-lg bg-[var(--color-surface-alt)]">
         {story.thumbnail && (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
@@ -302,7 +303,7 @@ export function StoryRow({
             className="absolute inset-0 flex items-center justify-center pointer-events-none"
             aria-hidden
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 backdrop-blur-sm">
               <svg
                 width="14"
                 height="14"
@@ -332,9 +333,9 @@ export function StoryRow({
         )}
       </div>
 
-      <div className="flex-1 min-w-0 pr-2 pt-0.5">
+      <div className="flex-1 min-w-0 pr-2 pt-0.5 pb-9">
         <h3
-          className={`text-[15px] font-bold leading-snug line-clamp-2 mb-0.5 pr-14 ${
+          className={`text-[15px] font-bold leading-snug line-clamp-2 mb-0.5 ${
             read ? "text-[var(--color-text-soft)]" : "text-[var(--color-text)]"
           }`}
         >
@@ -371,13 +372,14 @@ export function StoryRow({
         )}
       </div>
 
-      <div className="absolute top-2 right-0 flex items-center">
+    </a>
+      <div className="absolute bottom-1 right-0 flex items-center">
         <button
           onClick={onToggleBookmark}
           aria-label={bookmark ? "책갈피 해제" : "책갈피"}
           aria-pressed={bookmark}
           title={bookmark ? "책갈피 해제" : "책갈피로 표시"}
-          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
+          className={`inline-flex h-11 w-11 items-center justify-center transition-colors ${
             bookmark
               ? "text-[var(--color-brand)]"
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
@@ -402,7 +404,7 @@ export function StoryRow({
           aria-label={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
           aria-pressed={favorite}
           title={favorite ? "즐겨찾기 해제" : "즐겨찾기"}
-          className={`inline-flex h-9 w-9 items-center justify-center transition-colors ${
+          className={`inline-flex h-11 w-11 items-center justify-center transition-colors ${
             favorite
               ? "text-amber-500"
               : "text-[var(--color-text-muted)] hover:text-[var(--color-text-soft)]"
@@ -426,7 +428,7 @@ export function StoryRow({
 
       {progress > PROGRESS.NOISE_FLOOR && progress < PROGRESS.BAR_MAX && !read && (
         <div
-          className="absolute left-0 top-[88px] w-[136px] h-[3px] bg-black/10 overflow-hidden rounded-b-lg"
+          className="absolute left-0 top-[92px] w-[104px] h-[3px] bg-black/10 overflow-hidden rounded-b-lg"
           aria-hidden
         >
           <div
@@ -435,6 +437,6 @@ export function StoryRow({
           />
         </div>
       )}
-    </a>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import Link from "next/link";
 import { dataMeta } from "@/lib/api";
 import { formatDate, formatISODate, relativeDays, parseHashTags } from "@/lib/format";
@@ -15,6 +15,8 @@ import {
   mapStoriesById,
 } from "@/lib/story-selectors";
 import { BottomNav } from "./bottom-nav";
+import { useClientNow } from "@/lib/use-client-now";
+import { readListReturn, rememberList } from "@/lib/list-navigation";
 
 function formatTimestamp(ms: number): string {
   const d = new Date(ms);
@@ -41,7 +43,15 @@ function formatRelative(ms: number): string {
 }
 
 export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
-  const { readIds, progress, entries, ready } = useReadStatus();
+  const { readIds, progress, lastReadAt, entries, ready } = useReadStatus();
+  const now = useClientNow();
+  useEffect(() => {
+    if (!ready) return;
+    const saved = readListReturn();
+    if (!saved || saved.href !== window.location.pathname + window.location.search) return;
+    const frame = requestAnimationFrame(() => window.scrollTo(0, saved.scrollY));
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
 
   const storyById = useMemo(() => {
     return mapStoriesById(stories);
@@ -57,10 +67,10 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
     return getTimedStories(entries, storyById, "favoritedAt");
   }, [entries, storyById]);
 
-  // 이어 읽기 (progress 0.02~0.95, 안 읽음)
+  // Unfinished episodes ordered by the last reading time.
   const continueReading = useMemo(() => {
-    return getContinueReading(stories, progress, readIds, 8);
-  }, [stories, progress, readIds]);
+    return getContinueReading(stories, progress, lastReadAt, 8);
+  }, [stories, progress, lastReadAt]);
 
   // 읽음 타임라인 (readAt 내림차순, 날짜별 그룹)
   const readTimeline = useMemo(() => {
@@ -81,7 +91,10 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
     : 0;
 
   return (
-    <div className="mx-auto w-full max-w-[900px] px-4 pb-28 md:pb-12 pt-6">
+    <div className="mx-auto w-full max-w-[900px] px-4 pb-28 md:pb-12 pt-6"
+      onClickCapture={(event) => {
+        if ((event.target as Element).closest("a")?.getAttribute("href")?.includes("/stories/")) rememberList();
+      }}>
       <header className="mb-6">
         {/* "← 홈으로" 는 모바일에선 BottomNav 가 대신함. 데스크탑에서만 보임. */}
         <Link
@@ -97,8 +110,8 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           className="mt-2 text-[11px] text-[var(--color-text-muted)]"
           title={dataMeta.updatedAt}
         >
-          사이트 데이터 {formatISODate(dataMeta.updatedAt)} (
-          {relativeDays(dataMeta.updatedAt)})
+          사이트 데이터 {formatISODate(dataMeta.updatedAt)}
+          {now !== null && " (" + relativeDays(dataMeta.updatedAt, now) + ")"}
         </p>
       </header>
 
@@ -213,7 +226,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             icon="chart"
           >
             {seriesProgress.length === 0 ? (
-              <Empty text="읽은 회차가 없어요. 한 편이라도 80%까지 읽으면 여기 표시됩니다." />
+              <Empty text="읽은 회차가 없어요. 한 편을 끝까지 읽으면 여기 표시됩니다." />
             ) : (
               <ul className="flex flex-col">
                 {seriesProgress.map((s) => (
@@ -252,7 +265,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             icon="clock"
           >
             {readTimeline.length === 0 ? (
-              <Empty text="80%까지 읽은 회차가 자동으로 여기 기록됩니다." />
+              <Empty text="끝까지 읽은 회차가 자동으로 여기 기록됩니다." />
             ) : (
               <ul className="flex flex-col gap-4">
                 {(() => {

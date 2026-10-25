@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { localListPath, readListReturn } from "@/lib/list-navigation";
 import type { StoryDetail, StoryListItem } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { useDocumentKeydown } from "@/lib/use-document-keydown";
@@ -57,6 +58,7 @@ export function StoryViewer({
   const tapHintTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const { viewerToast, showToast } = useViewerToast();
+  const onSaveError = useCallback(() => showToast("이 기기에 읽기 위치를 저장하지 못했어요"), [showToast]);
   const {
     isRead,
     isFavorite,
@@ -80,6 +82,7 @@ export function StoryViewer({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBarVisible(true);
     autoHideTimerRef.current = setTimeout(() => {
+      if (document.activeElement?.closest("[data-viewer-toolbar]") && document.activeElement.matches(":focus-visible")) return;
       setBarVisible(false);
       // 처음 자동 숨김되는 순간, 한 번만 "탭하면 메뉴" 힌트 노출. 안쪽 타이머도
       // ref 에 기록해서 unmount cleanup 에서 같이 정리(leak 방지).
@@ -112,13 +115,14 @@ export function StoryViewer({
     setResumeHoldOpen,
   } = useResumePrompt({ storyId: story.id, scrollRef });
 
-  const { scrollProgress, handleScroll: restoreHandleScroll } =
+  const { scrollProgress, handleScroll: restoreHandleScroll, restoreThrough, cancelRestore } =
     useScrollRestore({
       storyId: story.id,
       scrollRef,
       onMarkRead: handleMarkRead,
       onResumeFromPercent: setResumePercent,
       isRead,
+      onSaveError,
     });
 
   const goPrev = useCallback(() => {
@@ -128,7 +132,9 @@ export function StoryViewer({
     if (next) router.push(`/stories/${next.id}`);
   }, [next, router]);
   const goClose = useCallback(() => {
-    router.push("/");
+    const saved = readListReturn();
+    const path = saved ? localListPath(saved.href, process.env.NEXT_PUBLIC_BASE_PATH ?? "") : null;
+    router.push(path ?? "/");
   }, [router]);
   const goJump = useCallback(
     (id: number) => {
@@ -184,7 +190,7 @@ export function StoryViewer({
 
   const handleScroll = useCallback(() => {
     restoreHandleScroll();
-    setBarVisible(false);
+    if (!document.activeElement?.closest("[data-viewer-toolbar]") || !document.activeElement.matches(":focus-visible")) setBarVisible(false);
     clearTimeout(scrollTimerRef.current);
     clearTimeout(autoHideTimerRef.current);
     scrollTimerRef.current = setTimeout(() => setBarVisible(true), 1800);
@@ -216,6 +222,20 @@ export function StoryViewer({
     <div
       ref={rootRef}
       role="dialog"
+      onKeyDownCapture={(event) => {
+        if (event.key === "Tab") {
+          clearTimeout(autoHideTimerRef.current);
+          clearTimeout(scrollTimerRef.current);
+          setBarVisible(true);
+        }
+      }}
+      onFocusCapture={(event) => {
+        if (event.target.closest("[data-viewer-toolbar]") && event.target.matches(":focus-visible")) {
+          clearTimeout(autoHideTimerRef.current);
+          clearTimeout(scrollTimerRef.current);
+          setBarVisible(true);
+        }
+      }}
       aria-modal="true"
       aria-labelledby={titleId}
       className="fixed inset-0 z-[70] flex flex-col bg-black"
@@ -223,6 +243,7 @@ export function StoryViewer({
       {/* Outer dark gutter; inner shell grows on larger viewports */}
       <div className="absolute inset-0 mx-auto max-w-[480px] md:max-w-[560px] lg:max-w-[720px] flex flex-col bg-[#0a0612] shadow-2xl">
         <ViewerTopBar
+          visible={barVisible}
           titleId={titleId}
           story={story}
           yearLabel={yearLabel}
@@ -245,7 +266,7 @@ export function StoryViewer({
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          <ViewerMedia story={story} />
+          <ViewerMedia story={story} restoreThrough={restoreThrough} />
           <ViewerEndCta
             storyId={story.id}
             hasNext={hasNext}
@@ -257,6 +278,7 @@ export function StoryViewer({
         </div>
 
         <ViewerBottomBar
+          visible={barVisible}
           barClass={barClass}
           scrollProgress={scrollProgress}
           siblings={siblings}
@@ -276,7 +298,7 @@ export function StoryViewer({
         {resumePercent !== null && (
           <ResumeBanner
             resumePercent={resumePercent}
-            onReset={handleResumeReset}
+            onReset={() => { cancelRestore(); handleResumeReset(); }}
             onDismiss={dismissResume}
             onHoldChange={setResumeHoldOpen}
           />

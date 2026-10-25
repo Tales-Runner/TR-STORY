@@ -89,10 +89,12 @@ export default function PrivacyPage() {
           <B>즐겨찾기</B> · 회차 ID 와 즐겨찾기 추가 시각.
         </Bullet>
         <Bullet>
-          <B>읽음 기록</B> · 80% 이상 스크롤한 회차의 ID 와 자동 기록 시각.
+          <B>읽음 기록</B> · 끝까지 읽은 회차의 ID와 자동 기록 시각.
         </Bullet>
         <Bullet>
-          <B>읽기 진행률</B> · 회차별 0~100% 스크롤 위치.
+          <B>읽기 진행률</B> · 회차별 진행률, 읽던 패널과 패널 안의 위치,
+          마지막으로 읽은 시각. 목록 복귀를 위해 선택한 조건과 목록 위치도
+          현재 탭에 저장합니다.
         </Bullet>
         <Bullet>
           <B>첫 방문 안내 닫음 여부</B> · localStorage 의 단일 boolean
