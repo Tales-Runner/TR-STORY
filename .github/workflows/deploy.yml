@@ -66,7 +66,8 @@ jobs:
       - name: Build (static export)
         env:
           NEXT_PUBLIC_BASE_PATH: /TR-STORY
-          NEXT_PUBLIC_SITE_URL: https://tales-runner.github.io/TR-STORY
+          NEXT_PUBLIC_SITE_URL: https://tr-story.vercel.app
+          NEXT_PUBLIC_LEGACY_SITE: "true"
         run: npm run build
 
       - uses: actions/configure-pages@v5

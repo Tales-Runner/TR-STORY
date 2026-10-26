@@ -5,7 +5,7 @@
 import { absoluteSiteUrl, normalizeSiteUrl } from "./site-url";
 
 export const SITE_URL = normalizeSiteUrl(
-  process.env.NEXT_PUBLIC_SITE_URL || "https://tales-runner.github.io/TR-STORY"
+  process.env.NEXT_PUBLIC_SITE_URL || "https://tr-story.vercel.app"
 );
 export const siteUrl = (path = "/") => absoluteSiteUrl(SITE_URL, path);
 export const INDEXABLE = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === "production";

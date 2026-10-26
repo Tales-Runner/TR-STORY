@@ -6,7 +6,7 @@
 TR Story 는 정렬·메타데이터·색감 등 공식 톤은 유지하면서 UI를
 모바일 풍 하나로 통일했다.
 
-라이브: <https://tales-runner.github.io/TR-STORY/>
+라이브: <https://tr-story.vercel.app/>
 
 ## Currently implemented
 - **모바일 풍 통일 레이아웃**: `max-w-[480px]` 중앙 정렬. 데스크탑에서도

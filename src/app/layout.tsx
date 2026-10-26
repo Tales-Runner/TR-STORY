@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { INDEXABLE, SITE_DESCRIPTION, SITE_TITLE, SITE_URL, siteUrl } from "@/lib/constants";
+import { SiteMoveNotice } from "@/components/site-move-notice";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -70,7 +71,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body>
-        <div className="min-h-dvh bg-white">{children}</div>
+        <div className="min-h-dvh bg-white"><SiteMoveNotice />{children}</div>
       </body>
     </html>
   );
