@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { INDEXABLE, SITE_DESCRIPTION, SITE_TITLE, SITE_URL, siteUrl } from "@/lib/constants";
 import { SiteMoveNotice } from "@/components/site-move-notice";
+import { SiteAnalytics } from "@/components/site-analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -11,6 +12,7 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   applicationName: "TR Story",
+  referrer: "origin",
   icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg` },
   keywords: [
     "테일즈런너",
@@ -72,6 +74,7 @@ export default function RootLayout({
     <html lang="ko">
       <body>
         <div className="min-h-dvh bg-white"><SiteMoveNotice />{children}</div>
+        {process.env.VERCEL_ENV === "production" && process.env.NEXT_PUBLIC_LEGACY_SITE !== "true" && <SiteAnalytics />}
       </body>
     </html>
   );

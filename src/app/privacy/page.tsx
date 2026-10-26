@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "개인정보 처리 안내 — TR Story",
     description:
-      "읽기 기록은 본인 브라우저에 저장됩니다. 계정·추적·광고 없이 동작하는 정적 사이트.",
+      "읽기 기록은 본인 브라우저에 저장됩니다. 방문 통계·성능 측정의 범위와 제외 항목을 안내합니다.",
     url: "/privacy/",
     images: [
       {
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "개인정보 처리 안내 — TR Story",
     description:
-      "사용자 데이터는 본인 브라우저에만 저장됩니다. 계정·추적·광고 없음.",
+      "읽기 기록은 기기에 저장되며, 공개 페이지의 방문 통계와 성능만 측정합니다.",
     images: [OFFICIAL_OG_IMAGE],
   },
 };
@@ -58,12 +58,13 @@ export default function PrivacyPage() {
         <p className="text-sm leading-relaxed text-[var(--color-text-soft)]">
           TR Story 는{" "}
           <span className="font-bold text-[var(--color-text)]">
-            회원가입 · 분석 도구 · 광고가 없는
+            회원가입 · 광고가 없는
           </span>{" "}
           정적 사이트입니다. 사용자의 책갈피 · 즐겨찾기 · 읽음 기록 ·
           진행률은 모두
-          본인의 브라우저 안에 저장되며 외부 서버로 전송되지 않습니다. 호스팅·이미지 제공자는 파일 요청을 처리하기 위해 접속 정보를 받을 수 있습니다.
+          본인의 브라우저 안에 저장되며 외부 서버로 전송되지 않습니다. 공개 운영 사이트에서는 방문 통계와 성능을 측정합니다. 호스팅·이미지 제공자는 파일 요청을 처리하기 위해 접속 정보를 받을 수 있습니다.
         </p>
+        <p className="rounded-lg bg-[var(--color-brand-soft)] p-3 text-sm leading-relaxed">2026-10-26부터 공개 운영 사이트에 Vercel Web Analytics와 Speed Insights를 적용합니다. 읽기 기록과 마이페이지는 측정 대상에서 제외합니다.</p>
       </section>
 
       <Section title="1. 사이트 성격">
@@ -76,7 +77,7 @@ export default function PrivacyPage() {
         </P>
       </Section>
 
-      <Section title="2. 우리가 저장하는 데이터 (전부 사용자 기기 안)">
+      <Section title="2. 기기에만 저장하는 읽기 기록">
         <P>
           다음 항목은 사용자 브라우저의 IndexedDB 또는 localStorage 에만
           저장되며 외부로 전송되지 않습니다.
@@ -107,13 +108,20 @@ export default function PrivacyPage() {
         <P>마이페이지에서 기록을 파일로 내보내거나 가져올 수 있습니다. 파일 처리와 기록 합치기는 브라우저 안에서 이루어지며, 선택한 파일을 서버에 업로드하지 않습니다.</P>
       </Section>
 
-      <Section title="3. 우리가 수집·전송하지 않는 것">
+      <Section title="3. 방문 통계와 성능 측정">
+        <P>Vercel에 배포한 공개 운영 사이트에서 Web Analytics로 페이지별 방문 수·유입 경로·기기와 브라우저 유형·대략적인 접속 지역을 집계하고, Speed Insights로 로딩·반응 속도 등 성능을 측정합니다. 측정 데이터는 Vercel로 전송됩니다.</P>
+        <P>통계용 쿠키를 사용하지 않습니다. Vercel Web Analytics는 요청 정보에서 만든 하루 단위 식별값으로 방문자를 집계하며, 운영자에게는 집계된 통계가 제공됩니다.</P>
+        <P>전송 전에 페이지 주소의 검색어·필터 등 쿼리 문자열과 해시를 제거하고, 마이페이지는 방문·성능 측정에서 제외합니다. 책갈피·즐겨찾기·읽던 위치·기록 파일 내용을 읽거나 전송하는 분석 기능은 없습니다. 회차 페이지의 방문 수는 통계에 포함됩니다.</P>
+        <P>기존 GitHub Pages 주소, 미리보기 배포 및 로컬 개발에서는 분석 기능을 실행하지 않습니다. 무료 수집 한도에 도달하면 통계 수집이 일시 중단될 수 있습니다.</P>
+        <P>상세 처리 방식: <A href="https://vercel.com/docs/analytics/privacy-policy">Web Analytics 개인정보 안내</A>, <A href="https://vercel.com/docs/speed-insights/privacy-policy">Speed Insights 개인정보 안내</A>.</P>
+      </Section>
+
+      <Section title="4. 우리가 수집·전송하지 않는 것">
         <Bullet>
           <B>계정 · 비밀번호 · 이메일</B> — 로그인 기능 자체가 없습니다.
         </Bullet>
         <Bullet>
-          <B>분석 도구</B> — Google Analytics, Vercel Analytics, Plausible,
-          Mixpanel 등 어떠한 분석 스크립트도 삽입되어 있지 않습니다.
+          <B>추가 추적 도구</B> — Google Analytics, 광고용 픽셀, 맞춤 이벤트 추적을 사용하지 않습니다.
         </Bullet>
         <Bullet>
           <B>광고 추적기 · 픽셀</B> — 광고 자체가 없습니다.
@@ -127,7 +135,7 @@ export default function PrivacyPage() {
         </Bullet>
       </Section>
 
-      <Section title="4. 제3자 서비스">
+      <Section title="5. 제3자 서비스">
         <P>
           사이트는 다음 외부 도메인의 콘텐츠를 사용자 브라우저로 직접 불러
           옵니다. 이 과정에서 사용자의 IP, User-Agent 등 일반적인 HTTP 요청
@@ -137,6 +145,7 @@ export default function PrivacyPage() {
         <Bullet>
           <B>GitHub Pages·Vercel</B> (호스팅) — 접속한 사이트 주소에 따라 HTML/CSS/JS 정적 파일을 제공합니다.
         </Bullet>
+        <Bullet><B>Vercel</B> (방문 통계·성능 측정) — 위 3항에 설명한 범위로 측정 데이터를 처리합니다.</Bullet>
         <Bullet>
           <B>trimage.rhaon.co.kr</B> (이미지 호스트) — 웹툰 패널 이미지.
           공식 라이브러리의 원본 이미지를 그대로 직접 링크합니다.
@@ -147,7 +156,7 @@ export default function PrivacyPage() {
         </Bullet>
       </Section>
 
-      <Section title="5. 사용자 데이터 통제권">
+      <Section title="6. 사용자 데이터 통제권">
         <Bullet>
           <B>전체 삭제</B>: 브라우저의 설정 → 개인정보 · 사이트 데이터 →
           현재 접속한 사이트 주소의 항목 삭제. IndexedDB · localStorage 가 함께
@@ -160,7 +169,7 @@ export default function PrivacyPage() {
         </Bullet>
       </Section>
 
-      <Section title="6. 콘텐츠 저작권 · 권리자 요청">
+      <Section title="7. 콘텐츠 저작권 · 권리자 요청">
         <P>
           모든 웹툰·영상 콘텐츠의 권리는 RHAON Entertainment 및 Blomics 에
           있습니다. TR Story 는 모바일 가독성 향상을 목적으로 한 비공식
@@ -172,11 +181,10 @@ export default function PrivacyPage() {
         </P>
       </Section>
 
-      <Section title="7. 변경 안내">
+      <Section title="8. 변경 안내">
         <P>
           본 안내문이 변경될 경우 동일 페이지의 &ldquo;최종 업데이트&rdquo;
-          날짜가 갱신됩니다. 데이터 수집 정책이 의미 있게 바뀌는 경우(예: 분석
-          도구 도입) 별도 공지 페이지로 미리 알리겠습니다.
+          날짜가 갱신됩니다. 데이터 처리 범위가 바뀌면 이 페이지에 변경 내용과 적용일을 안내합니다.
         </P>
       </Section>
 
