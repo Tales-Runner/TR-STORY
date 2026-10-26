@@ -34,9 +34,8 @@ export function SeriesShell({ label, stories }: { label: string; stories: StoryL
       <p className="text-xs font-semibold text-[var(--color-brand-strong)]">테일즈런너 웹툰·스토리</p>
       <h1 className="text-2xl font-bold">{label}</h1>
       <p className="text-sm leading-relaxed text-[var(--color-text-soft)]">
-        {stories.length}편 · 공개순
+        {stories.length}편 · {readCount}편 읽음
       </p>
-      <p className="text-xs text-[var(--color-text-soft)]">{readCount} / {stories.length}편 읽음 · 이 기기 기록</p>
       <div className="flex flex-wrap gap-2">
         {resume && <Link href={`/stories/${resume.id}/`} prefetch={false}
           className="rounded-lg bg-[var(--color-brand)] px-4 py-3 text-sm font-semibold text-white">

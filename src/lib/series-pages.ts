@@ -25,5 +25,5 @@ export function getSeriesPages(stories: StoryListItem[]) {
 }
 
 export function seriesDescription(label: string, count: number): string {
-  return `테일즈런너 ${label} 회차 목록. 웹툰·영상 ${count}편, 공개순 정렬, 이어 읽기와 책갈피. 테런 스토리 비공식 모바일 뷰어.`;
+  return `테일즈런너 ${label} 회차 목록. 웹툰·영상 ${count}편, 이어 읽기와 책갈피. 테런 스토리 비공식 모바일 뷰어.`;
 }
