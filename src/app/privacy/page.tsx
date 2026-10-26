@@ -8,12 +8,12 @@ const OFFICIAL_OG_IMAGE =
 export const metadata: Metadata = {
   title: "개인정보 처리 안내",
   description:
-    "TR Story 는 사용자 계정 · 분석 · 쿠키 · 서버 로그 없이 동작합니다. 책갈피 · 즐겨찾기 · 읽음 기록 · 진행률은 모두 사용자 브라우저에만 저장되며 외부로 전송되지 않습니다.",
+    "TR Story의 책갈피·즐겨찾기·읽음 기록·진행률은 사용자 브라우저에 저장됩니다. 기록 파일의 내보내기와 가져오기도 기기 안에서 처리됩니다.",
   alternates: { canonical: "/privacy/" },
   openGraph: {
     title: "개인정보 처리 안내 — TR Story",
     description:
-      "사용자 데이터는 본인 브라우저에만 저장됩니다. 계정·추적·광고·서버 로그 없이 동작하는 정적 사이트.",
+      "읽기 기록은 본인 브라우저에 저장됩니다. 계정·추적·광고 없이 동작하는 정적 사이트.",
     url: "/privacy/",
     images: [
       {
@@ -47,7 +47,7 @@ export default function PrivacyPage() {
           개인정보 처리 안내
         </h1>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          최종 업데이트: 2026-05-25
+          최종 업데이트: 2026-10-26
         </p>
       </header>
 
@@ -58,11 +58,11 @@ export default function PrivacyPage() {
         <p className="text-sm leading-relaxed text-[var(--color-text-soft)]">
           TR Story 는{" "}
           <span className="font-bold text-[var(--color-text)]">
-            계정 · 분석 도구 · 쿠키 · 서버 측 사용자 로그가 없는
+            회원가입 · 분석 도구 · 광고가 없는
           </span>{" "}
           정적 사이트입니다. 사용자의 책갈피 · 즐겨찾기 · 읽음 기록 ·
           진행률은 모두
-          본인의 브라우저 안 에만 저장되며 외부 서버로 전송되지 않습니다.
+          본인의 브라우저 안에 저장되며 외부 서버로 전송되지 않습니다. 호스팅·이미지 제공자는 파일 요청을 처리하기 위해 접속 정보를 받을 수 있습니다.
         </p>
       </section>
 
@@ -104,6 +104,7 @@ export default function PrivacyPage() {
           위 데이터는 사용자가 브라우저 설정에서 사이트 데이터를 삭제하면
           영구히 사라집니다. 운영자는 이를 다시 복구할 수 없습니다.
         </P>
+        <P>마이페이지에서 기록을 파일로 내보내거나 가져올 수 있습니다. 파일 처리와 기록 합치기는 브라우저 안에서 이루어지며, 선택한 파일을 서버에 업로드하지 않습니다.</P>
       </Section>
 
       <Section title="3. 우리가 수집·전송하지 않는 것">
@@ -122,8 +123,7 @@ export default function PrivacyPage() {
           제3자 도메인에 보내는 일반 fetch 요청은 별도)
         </Bullet>
         <Bullet>
-          <B>서버 측 사용자 행동 로그</B> — 사이트는 GitHub Pages 의 정적
-          파일로만 구성되어 별도 application 서버가 없습니다.
+          <B>읽기 행동 전송</B> — 읽던 위치·책갈피·즐겨찾기를 서버로 보내는 기능은 없습니다. 호스팅 제공자의 일반 접속 로그와는 별개입니다.
         </Bullet>
       </Section>
 
@@ -135,15 +135,11 @@ export default function PrivacyPage() {
           정책을 따릅니다.
         </P>
         <Bullet>
-          <B>GitHub Pages</B> (호스팅, github.com) — HTML/CSS/JS 정적 파일
-          서빙.
+          <B>GitHub Pages·Vercel</B> (호스팅) — 접속한 사이트 주소에 따라 HTML/CSS/JS 정적 파일을 제공합니다.
         </Bullet>
         <Bullet>
           <B>trimage.rhaon.co.kr</B> (이미지 호스트) — 웹툰 패널 이미지.
           공식 라이브러리의 원본 이미지를 그대로 직접 링크합니다.
-        </Bullet>
-        <Bullet>
-          <B>cdn.jsdelivr.net</B> — Pretendard 폰트 파일.
         </Bullet>
         <Bullet>
           <B>tr.game.onstove.com</B> — 회차 페이지의 &ldquo;공식 댓글&rdquo;
@@ -154,9 +150,10 @@ export default function PrivacyPage() {
       <Section title="5. 사용자 데이터 통제권">
         <Bullet>
           <B>전체 삭제</B>: 브라우저의 설정 → 개인정보 · 사이트 데이터 →
-          tales-runner.github.io 항목 삭제. IndexedDB · localStorage 가 함께
+          현재 접속한 사이트 주소의 항목 삭제. IndexedDB · localStorage 가 함께
           비워집니다.
         </Bullet>
+        <Bullet><B>기록 옮기기</B>: 마이페이지에서 기록 파일을 내보낸 뒤 새 주소나 다른 기기의 마이페이지에서 가져오세요. 기존 기록을 유지하며 합칩니다. 파일을 다른 사람에게 공유하면 읽기 기록이 전달될 수 있습니다.</Bullet>
         <Bullet>
           <B>책갈피/즐겨찾기 개별 해제</B>: 카드 또는 뷰어의 🔖 · ★ 버튼을 다시
           눌러 해제 가능.

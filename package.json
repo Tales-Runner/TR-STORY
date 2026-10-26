@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm test",
     "fetch-data": "tsx scripts/fetch-data.ts"
   },
   "dependencies": {

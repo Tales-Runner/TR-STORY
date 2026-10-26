@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { localListPath, readListReturn } from "@/lib/list-navigation";
+import { seriesLabel } from "@/lib/series";
+import { seriesPath } from "@/lib/series-pages";
 import type { StoryDetail, StoryListItem } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { useDocumentKeydown } from "@/lib/use-document-keydown";
@@ -148,8 +150,8 @@ export function StoryViewer({
   const goClose = useCallback(() => {
     const saved = readListReturn();
     const path = saved ? localListPath(saved.href, process.env.NEXT_PUBLIC_BASE_PATH ?? "") : null;
-    router.push(path ?? "/");
-  }, [router]);
+    router.push(path ?? seriesPath(seriesLabel(story) ?? "기타"));
+  }, [router, story]);
   const goJump = useCallback(
     (id: number) => {
       router.push(`/stories/${id}`);
@@ -189,9 +191,12 @@ export function StoryViewer({
     )
   );
 
-  // Prefetch the next story's first image so continue-reading feels instant.
+  const nearEnd = scrollProgress >= 0.75;
+  // Avoid competing with the current episode or using constrained mobile data.
   useEffect(() => {
-    if (!nextPreloadImages?.length) return;
+    if (!nearEnd || !nextPreloadImages?.length) return;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? "")) return;
     for (const url of nextPreloadImages) {
       if (!url) continue;
       const preload = new Image();
@@ -200,7 +205,7 @@ export function StoryViewer({
       preload.referrerPolicy = "no-referrer";
       preload.src = url;
     }
-  }, [nextPreloadImages]);
+  }, [nearEnd, nextPreloadImages]);
 
   const handleScroll = useCallback(() => {
     restoreHandleScroll();

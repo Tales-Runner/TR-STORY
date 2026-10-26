@@ -220,11 +220,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
       view: value === "all" ? "series" : "episode" }, true);
   }, [update]);
 
-  const openSeries = useCallback((label: string) => {
-    update({ series: label, sort: "asc", view: "episode", q: "", year: "all", status: "all" }, true);
-    window.scrollTo(0, 0);
-  }, [update]);
-
   useEffect(() => {
     if (!filtersLoaded) return;
     const saved = readListReturn();
@@ -266,6 +261,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         <div className="flex items-center gap-2 px-4 py-2.5">
           <Link
             href="/"
+            prefetch={false}
             className="flex items-center gap-2 font-bold text-[var(--color-text)] shrink-0"
           >
             <span className="inline-flex w-8 h-8 items-center justify-center rounded-lg bg-[var(--color-brand)] text-white text-[11px] font-bold">
@@ -320,6 +316,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           {/* Desktop-only 마이페이지 링크 — 모바일은 BottomNav 가 담당 */}
           <Link
             href="/me/"
+            prefetch={false}
             title="내 책갈피 · 읽은 회차 모아보기"
             className="hidden md:inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--color-text-soft)] hover:bg-[var(--color-surface-alt)] hover:text-[var(--color-text)]"
           >
@@ -538,6 +535,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
 
       {/* Body */}
       <main className="px-4 pt-4">
+        {seriesFilter === "all" && <section className="mb-5 space-y-2">
+          <h1 className="text-xl font-bold">테일즈런너 웹툰, 모바일로 편하게</h1>
+          <p className="text-sm leading-relaxed text-[var(--color-text-soft)]">
+            테런 스토리 {stories.length}편을 시리즈별로 만나보세요. 읽던 위치 저장과 책갈피로 언제든 이어 볼 수 있어요.
+          </p>
+        </section>}
         {seriesFilter !== "all" && (
           <section aria-label="선택한 시리즈" className="mb-6 space-y-3 border-b border-[var(--color-border)] pb-5">
             <button onClick={() => update({ series: "all", view: "series", sort: "desc" }, true)}
@@ -610,7 +613,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 <li key={`series-${sc.label}`}>
                   <SeriesCard
                     data={sc}
-                    onOpen={() => openSeries(sc.label)}
                   />
                 </li>
               ))}

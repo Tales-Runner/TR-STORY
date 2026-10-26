@@ -1,3 +1,5 @@
+import { mergeReadingEntries } from "./reading-backup";
+
 const DB_NAME = "tr-story";
 const STORE = "stories";
 
@@ -69,6 +71,28 @@ async function write(op: (store: IDBObjectStore) => void): Promise<void> {
 
 export const db = {
   stories: {
+    async exportEntries(): Promise<StoryEntry[]> {
+      const idb = await open();
+      return new Promise((resolve, reject) => {
+        const tx = idb.transaction(STORE);
+        const request = tx.objectStore(STORE).getAll();
+        tx.oncomplete = () => resolve(request.result);
+        tx.onabort = tx.onerror = () => reject(tx.error ?? new Error("Storage unavailable"));
+      });
+    },
+    async importEntries(entries: StoryEntry[]): Promise<void> {
+      const idb = await open();
+      return new Promise((resolve, reject) => {
+        const tx = idb.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+        const request = store.getAll();
+        request.onsuccess = () => {
+          for (const entry of mergeReadingEntries(request.result, entries)) store.put(entry);
+        };
+        tx.oncomplete = () => resolve();
+        tx.onabort = tx.onerror = () => reject(tx.error ?? new Error("Storage unavailable"));
+      });
+    },
     getAll(): Promise<StoryEntry[]> {
       return safe(async () => {
         const idb = await open();

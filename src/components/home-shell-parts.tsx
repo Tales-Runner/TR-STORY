@@ -1,6 +1,8 @@
 "use client";
 
 import type React from "react";
+import Link from "next/link";
+import { seriesPath } from "@/lib/series-pages";
 import { formatDate, parseHashTags } from "@/lib/format";
 import { PROGRESS } from "@/lib/progress";
 import { STORY_CATEGORY, STORY_CATEGORY_LABEL } from "@/lib/types";
@@ -139,19 +141,17 @@ const CATEGORY_BG: Record<number, string> = {
 
 export function SeriesCard({
   data,
-  onOpen,
 }: {
   data: SeriesCardData;
-  onOpen: () => void;
 }) {
   const isVideo = data.sampleStory.category === STORY_CATEGORY.VIDEO;
   const readPct = data.totalCount
     ? Math.min(100, Math.round((data.readCount / data.totalCount) * 100))
     : 0;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
+    <Link
+      href={seriesPath(data.label)}
+      prefetch={false}
       className="group block w-full text-left transition active:scale-[0.98]"
     >
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-[var(--color-surface-alt)]">
@@ -227,7 +227,7 @@ export function SeriesCard({
           </span>
         </p>
       </div>
-    </button>
+    </Link>
   );
 }
 

@@ -1,15 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { SITE_URL } from "@/lib/constants";
+import { INDEXABLE, SITE_DESCRIPTION, SITE_TITLE, SITE_URL, siteUrl } from "@/lib/constants";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "TR Story — 테일즈런너 웹툰·스토리 모바일 뷰어",
+    default: SITE_TITLE,
     template: "%s — TR Story",
   },
-  description:
-    "테일즈런너(테런) 공식 웹툰·영상 198편을 모바일에서 편하게 읽기 위한 비공식 뷰어. 진행률 자동 저장, 시리즈·연도별 필터, 회차 바텀시트. 테일즈 아틀리에·라스트 카오스·DashJump 등 전 시리즈.",
+  description: SITE_DESCRIPTION,
   applicationName: "TR Story",
   keywords: [
     "테일즈런너",
@@ -27,27 +26,31 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "heznpc" }],
   alternates: {
-    canonical: "/",
+    canonical: siteUrl(),
   },
   openGraph: {
     type: "website",
     siteName: "TR Story",
     locale: "ko_KR",
-    url: "/",
-    title: "TR Story — 테일즈런너 웹툰·스토리 모바일 뷰어",
-    description:
-      "테일즈런너 공식 웹툰·영상 198편을 모바일에서 한 손에. 진행률 자동 저장, 시리즈·연도 필터, 다음 회차 prefetch.",
+    url: siteUrl(),
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "TR Story — 테일즈런너 웹툰·스토리 모바일 뷰어",
-    description:
-      "테일즈런너 공식 웹툰 198편을 모바일에서 편하게. 진행률 자동 저장 + 시리즈 필터.",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
   },
   robots: {
-    index: true,
+    index: INDEXABLE,
     follow: true,
-    googleBot: { index: true, follow: true },
+    googleBot: { index: INDEXABLE, follow: true },
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    other: process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION
+      ? { "naver-site-verification": process.env.NEXT_PUBLIC_NAVER_SITE_VERIFICATION }
+      : undefined,
   },
 };
 

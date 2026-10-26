@@ -17,6 +17,7 @@ import {
 import { BottomNav } from "./bottom-nav";
 import { useClientNow } from "@/lib/use-client-now";
 import { readListReturn, rememberList } from "@/lib/list-navigation";
+import { ReadingBackup } from "./reading-backup";
 
 function formatTimestamp(ms: number): string {
   const d = new Date(ms);
@@ -43,7 +44,7 @@ function formatRelative(ms: number): string {
 }
 
 export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
-  const { readIds, progress, lastReadAt, entries, ready } = useReadStatus();
+  const { readIds, progress, lastReadAt, entries, ready, refresh } = useReadStatus();
   const now = useClientNow();
   useEffect(() => {
     if (!ready) return;
@@ -313,6 +314,8 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
           </Section>
         </>
       )}
+
+      <ReadingBackup onImported={refresh} />
 
       <footer className="mt-12 border-t border-[var(--color-border)] pt-6 text-center text-[11px] text-[var(--color-text-muted)]">
         <Link href="/privacy/" className="underline">

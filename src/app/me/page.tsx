@@ -6,6 +6,7 @@ const OFFICIAL_OG_IMAGE =
   "https://trimage.rhaon.co.kr/images/trweb-public/og/share_img_800.png";
 
 export const metadata: Metadata = {
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
   title: "마이페이지",
   description:
     "내가 책갈피한 회차, 즐겨찾기, 읽은 회차 타임라인을 한 자리에서 확인. 모든 기록은 본인 브라우저에만 저장됩니다.",

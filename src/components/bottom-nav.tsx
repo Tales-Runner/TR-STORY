@@ -26,6 +26,7 @@ export function BottomNav() {
         <li>
           <Link
             href="/"
+            prefetch={false}
             aria-current={isHome ? "page" : undefined}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
               isHome
@@ -48,6 +49,7 @@ export function BottomNav() {
         <li>
           <Link
             href="/me/"
+            prefetch={false}
             aria-current={isMe ? "page" : undefined}
             className={`flex flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
               isMe

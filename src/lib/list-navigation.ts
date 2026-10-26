@@ -40,7 +40,9 @@ export function localListPath(href: string, basePath: string): string | null {
   if (!href.startsWith("/") || href.startsWith("//")) return null;
   const url = new URL(href, "https://local.invalid");
   if (url.origin !== "https://local.invalid") return null;
-  if (url.pathname !== `${basePath}/` && url.pathname !== `${basePath}/me/`) return null;
+  const localPath = url.pathname.slice(basePath.length);
+  const seriesPath = url.pathname.startsWith(`${basePath}/series/`) && /^\/series\/[^/]+\/$/.test(localPath);
+  if (url.pathname !== `${basePath}/` && url.pathname !== `${basePath}/me/` && !seriesPath) return null;
   return `${url.pathname.slice(basePath.length)}${url.search}`;
 }
 

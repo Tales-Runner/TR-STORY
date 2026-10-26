@@ -7,6 +7,10 @@ import {
 } from "@/lib/api";
 import { getStoryNavigation } from "@/lib/story-selectors";
 import { StoryViewer } from "@/components/story-viewer";
+import { siteUrl } from "@/lib/constants";
+import { seriesLabel } from "@/lib/series";
+import { seriesPath } from "@/lib/series-pages";
+import { JsonLd } from "@/components/json-ld";
 
 export function generateStaticParams() {
   return listAllIds().map((id) => ({ id: String(id) }));
@@ -24,10 +28,10 @@ export async function generateMetadata({
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
-  const description = `테일즈런너 ${tags.join(" · ")} ${detail.subject} (${detail.openYear} 공개). 모바일 친화 비공식 뷰어.`;
-  const canonical = `/stories/${detail.id}/`;
+  const description = `테일즈런너 ${detail.subject}. ${tags.join(" · ")}. 모바일에서 읽고 읽던 위치를 이어 볼 수 있는 비공식 웹툰·스토리 뷰어입니다.`;
+  const canonical = siteUrl(`/stories/${detail.id}/`);
   return {
-    title: detail.subject,
+    title: `${detail.subject} | 테일즈런너`,
     description,
     keywords: ["테일즈런너", "테런", ...tags, detail.subject],
     alternates: { canonical },
@@ -85,11 +89,18 @@ export default async function StoryPage({
     : null;
   const nextPreloadImages =
     nextDetail?.images
-      .slice(0, 2)
+      .slice(0, 1)
       .map((i) => i.imageUrl)
       .filter(Boolean) ?? [];
 
-  return (
+  const label = seriesLabel(detail) ?? "기타";
+  return (<>
+    <JsonLd data={{ "@context": "https://schema.org", "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "테런 스토리", item: siteUrl() },
+        { "@type": "ListItem", position: 2, name: label, item: siteUrl(seriesPath(label)) },
+        { "@type": "ListItem", position: 3, name: detail.subject, item: siteUrl(`/stories/${detail.id}/`) },
+      ] }} />
     <StoryViewer
       key={detail.id}
       story={detail}
@@ -97,5 +108,6 @@ export default async function StoryPage({
       yearLabel={yearLabel}
       nextPreloadImages={nextPreloadImages}
     />
+  </>
   );
 }

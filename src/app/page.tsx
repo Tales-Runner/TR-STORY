@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { fetchStoryList } from "@/lib/api";
 import { HomeShell } from "@/components/home-shell";
+import { JsonLd } from "@/components/json-ld";
+import { SITE_DESCRIPTION, SITE_TITLE, siteUrl } from "@/lib/constants";
 
 /**
  * 홈/소개 페이지의 og:image 는 테일즈런너 공식이 자체 사이트 메인 OG
@@ -18,6 +20,12 @@ const OFFICIAL_OG_IMAGE =
 
 export const metadata: Metadata = {
   openGraph: {
+    type: "website",
+    siteName: "TR Story",
+    locale: "ko_KR",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: siteUrl(),
     images: [
       {
         url: OFFICIAL_OG_IMAGE,
@@ -35,5 +43,10 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const stories = await fetchStoryList();
-  return <HomeShell stories={stories} />;
+  return <>
+    <JsonLd data={{ "@context": "https://schema.org", "@type": "WebSite",
+      name: "TR Story", alternateName: "테런 스토리", url: siteUrl(),
+      description: SITE_DESCRIPTION, inLanguage: "ko" }} />
+    <HomeShell stories={stories} />
+  </>;
 }
