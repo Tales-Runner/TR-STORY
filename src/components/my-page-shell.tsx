@@ -160,7 +160,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             icon="bookmark"
           >
             {bookmarks.length === 0 ? (
-              <Empty text="아직 책갈피한 회차가 없습니다. 카드의 🔖 버튼을 눌러 표시해두세요." />
+              <Empty text="책갈피가 없습니다." />
             ) : (
               <ul className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {bookmarks.map(({ story, at }) => (
@@ -205,7 +205,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             icon="star"
           >
             {favorites.length === 0 ? (
-              <Empty text="즐겨찾기한 회차가 없습니다. 카드의 ★ 버튼으로 추가해보세요." />
+              <Empty text="즐겨찾기가 없습니다." />
             ) : (
               <ul className="grid grid-cols-1 sm:grid-cols-2 sm:gap-x-6 divide-y divide-[var(--color-border)] sm:divide-y-0">
                 {favorites.map(({ story, at }) => (
@@ -227,7 +227,7 @@ export function MyPageShell({ stories }: { stories: StoryListItem[] }) {
             icon="chart"
           >
             {seriesProgress.length === 0 ? (
-              <Empty text="읽은 회차가 없어요. 한 편을 끝까지 읽으면 여기 표시됩니다." />
+              <Empty text="아직 완독한 회차가 없습니다." />
             ) : (
               <ul className="flex flex-col">
                 {seriesProgress.map((s) => (

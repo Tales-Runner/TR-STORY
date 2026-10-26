@@ -11,6 +11,7 @@ import { siteUrl } from "@/lib/constants";
 import { seriesLabel } from "@/lib/series";
 import { seriesPath } from "@/lib/series-pages";
 import { JsonLd } from "@/components/json-ld";
+import { STORY_CATEGORY_LABEL } from "@/lib/types";
 
 export function generateStaticParams() {
   return listAllIds().map((id) => ({ id: String(id) }));
@@ -28,16 +29,18 @@ export async function generateMetadata({
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
-  const description = `테일즈런너 ${detail.subject}. ${tags.join(" · ")}. 모바일에서 읽고 읽던 위치를 이어 볼 수 있는 비공식 웹툰·스토리 뷰어입니다.`;
+  const contentType = STORY_CATEGORY_LABEL[detail.category] ?? "스토리";
+  const title = `${detail.subject} | 테일즈런너 ${contentType}`;
+  const description = `테일즈런너 ${contentType} ‘${detail.subject}’. ${tags.length ? tags.join(" · ") + ". " : ""}시리즈 회차 목록, 이어 읽기와 책갈피를 제공하는 테런 스토리 비공식 모바일 뷰어.`;
   const canonical = siteUrl(`/stories/${detail.id}/`);
   return {
-    title: `${detail.subject} | 테일즈런너`,
+    title,
     description,
     keywords: ["테일즈런너", "테런", ...tags, detail.subject],
     alternates: { canonical },
     openGraph: {
       type: "article",
-      title: `${detail.subject} — 테일즈런너`,
+      title,
       description,
       url: canonical,
       images: detail.thumbnail
@@ -49,7 +52,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: detail.thumbnail ? "summary_large_image" : "summary",
-      title: `${detail.subject} — 테일즈런너`,
+      title,
       description,
       images: detail.thumbnail ? [detail.thumbnail] : undefined,
     },

@@ -47,7 +47,7 @@ export default function PrivacyPage() {
           개인정보 처리 안내
         </h1>
         <p className="mt-1 text-xs text-[var(--color-text-muted)]">
-          최종 업데이트: 2026-10-26
+          최종 업데이트: 2026-10-27
         </p>
       </header>
 
@@ -98,8 +98,7 @@ export default function PrivacyPage() {
           현재 탭에 저장합니다.
         </Bullet>
         <Bullet>
-          <B>첫 방문 안내 닫음 여부</B> · localStorage 의 단일 boolean
-          플래그.
+          <B>뷰어 조작 안내 표시 여부</B> · localStorage에 저장하는 표시값.
         </Bullet>
         <P className="mt-3">
           위 데이터는 사용자가 브라우저 설정에서 사이트 데이터를 삭제하면

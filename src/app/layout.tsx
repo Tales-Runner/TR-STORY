@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { INDEXABLE, SITE_DESCRIPTION, SITE_TITLE, SITE_URL, siteUrl } from "@/lib/constants";
+import { INDEXABLE, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, siteUrl } from "@/lib/constants";
 import { SiteMoveNotice } from "@/components/site-move-notice";
 import { SiteAnalytics } from "@/components/site-analytics";
 import "./globals.css";
@@ -8,10 +8,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
     default: SITE_TITLE,
-    template: "%s — TR Story",
+    template: `%s — ${SITE_NAME}`,
   },
   description: SITE_DESCRIPTION,
-  applicationName: "TR Story",
+  applicationName: SITE_NAME,
   referrer: "origin",
   icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.svg` },
   keywords: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: "website",
-    siteName: "TR Story",
+    siteName: SITE_NAME,
     locale: "ko_KR",
     url: siteUrl(),
     title: SITE_TITLE,

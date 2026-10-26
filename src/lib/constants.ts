@@ -9,7 +9,8 @@ export const SITE_URL = normalizeSiteUrl(
 );
 export const siteUrl = (path = "/") => absoluteSiteUrl(SITE_URL, path);
 export const INDEXABLE = !process.env.VERCEL_ENV || process.env.VERCEL_ENV === "production";
-export const SITE_TITLE = "테일즈런너 웹툰·스토리 모바일로 보기 | TR Story";
+export const SITE_NAME = "테런 스토리";
+export const SITE_TITLE = "테일즈런너 웹툰 | 테런 스토리 모바일 뷰어";
 export const SITE_DESCRIPTION =
-  "테일즈런너(테런) 웹툰과 스토리를 모바일에서 편하게 읽어보세요. 시리즈별 회차 순서, 읽던 위치 자동 저장, 책갈피와 즐겨찾기를 제공하는 비공식 뷰어입니다.";
+  "테일즈런너 웹툰·영상 회차 모음. 테일즈 아틀리에, 라스트 카오스, 테일즈 드림 등 시리즈별 목록과 이어 읽기·책갈피를 제공하는 테런 스토리 비공식 모바일 뷰어.";
 export const OFFICIAL_OG_IMAGE = "https://trimage.rhaon.co.kr/images/trweb-public/og/share_img_800.png";

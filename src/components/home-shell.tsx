@@ -46,28 +46,6 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
   const bookmarkOnly = filters.status === "bookmark";
   const now = useClientNow();
   const [showFilters, setShowFilters] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  // First-visit hint about the read/favorite buttons. Shown once,
-  // dismissible. localStorage keeps the dismissal across sessions.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const dismissed =
-        localStorage.getItem("tr-story-onboarding-dismissed") === "1";
-      if (!dismissed) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setShowOnboarding(true);
-      }
-    } catch {}
-  }, []);
-
-  const dismissOnboarding = useCallback(() => {
-    setShowOnboarding(false);
-    try {
-      localStorage.setItem("tr-story-onboarding-dismissed", "1");
-    } catch {}
-  }, []);
 
 
   const {
@@ -186,6 +164,8 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
     !continueOnly &&
     !bookmarkOnly;
 
+  const resetFilters = () => update({ q: "", year: "all", series: "all", status: "all", sort: "desc" }, true);
+
   // 시리즈 옵션: 데이터에서 자동 추출 + 가장 최근 회차 기준 내림차순.
   // "캐릭터 스토리" 는 단편 모음(서로 다른 캐릭터별 1~3편) 이라 다른 시리즈와
   // 같은 축으로 정렬하면 어색하다 — 항상 맨 뒤 sentinel 로 강제.
@@ -278,7 +258,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               onChange={(e) => update({ q: e.target.value })}
               placeholder="제목·태그 검색"
               aria-label="제목·태그 검색"
-              className="w-full rounded-full bg-[var(--color-surface-alt)] pl-9 pr-8 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[var(--color-text)]/10"
+              className="w-full rounded-full bg-[var(--color-surface-alt)] pl-9 pr-12 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[var(--color-text)]/10"
             />
             <svg
               className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]"
@@ -299,7 +279,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
               <button
                 onClick={() => update({ q: "" })}
                 aria-label="검색어 지우기"
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] p-1"
+                className="absolute right-0 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center text-[var(--color-text-soft)] hover:text-[var(--color-text)]"
               >
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
                   <path
@@ -463,7 +443,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
                 </svg>
               }
             >
-              북마크
+              책갈피
             </StatusToggle>
           </div>
         </div>
@@ -488,7 +468,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           <button type="button" aria-expanded={showFilters} aria-controls="home-filters"
             onClick={() => setShowFilters((shown) => !shown)}
             className="ml-auto min-h-11 px-3 text-sm text-[var(--color-text-soft)]">
-            {showFilters ? "필터 닫기" : "필터"}{(yearFilter !== "all" || filters.status !== "all") && " · 적용 중"}
+            {showFilters ? "필터 닫기" : "필터"}{(yearFilter !== "all" || seriesFilter !== "all" || filters.status !== "all") && " · 적용 중"}
           </button>
         </div>
       </header>
@@ -514,31 +494,12 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
         </div>
       )}
 
-      {showOnboarding && isFreshList && (
-        <div className="mx-4 mt-3 flex items-start gap-2 rounded-xl bg-[var(--color-brand-soft)] px-3 py-2.5 text-[12px] leading-snug text-[var(--color-brand-strong)]">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="mt-0.5 shrink-0">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M12 8v5M12 16.5v.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          <div className="flex-1">
-            시리즈를 선택해 첫 회차부터 읽어보세요. 읽던 위치는 이 기기에 자동으로 저장됩니다.
-          </div>
-          <button
-            onClick={dismissOnboarding}
-            aria-label="안내 닫기"
-            className="shrink-0 rounded-md px-2 py-0.5 text-[11px] text-[var(--color-brand-strong)]/70 hover:bg-white/50"
-          >
-            닫기
-          </button>
-        </div>
-      )}
-
       {/* Body */}
       <main className="px-4 pt-4">
         {seriesFilter === "all" && <section className="mb-5 space-y-2">
-          <h1 className="text-xl font-bold">테일즈런너 웹툰, 모바일로 편하게</h1>
+          <h1 className="text-xl font-bold">테일즈런너 웹툰</h1>
           <p className="text-sm leading-relaxed text-[var(--color-text-soft)]">
-            테런 스토리 {stories.length}편을 시리즈별로 만나보세요. 읽던 위치 저장과 책갈피로 언제든 이어 볼 수 있어요.
+            웹툰·영상 {stories.length}편
           </p>
         </section>}
         {seriesFilter !== "all" && (
@@ -602,13 +563,23 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </section>
         )}
 
+        {!isFreshList && <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm">
+          <p role="status" className="text-[var(--color-text-soft)]">
+            {debouncedQ.trim() ? `‘${debouncedQ.trim()}’ 검색 결과 · ` : "필터 결과 · "}
+            {view === "series" ? `${seriesCards.length}개 시리즈` : `${filtered.length}편`}
+          </p>
+          <button type="button" onClick={resetFilters} className="min-h-11 px-3 font-medium text-[var(--color-brand-strong)]">
+            검색·필터 초기화
+          </button>
+        </div>}
+
         {view === "series" ? (
           seriesCards.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[var(--color-border)] py-16 text-center text-sm text-[var(--color-text-muted)]">
               조건에 맞는 시리즈가 없습니다.
             </div>
           ) : (
-            <ul className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-5">
+            <ul className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-x-4 gap-y-5">
               {seriesCards.map((sc) => (
                 <li key={`series-${sc.label}`}>
                   <SeriesCard
@@ -675,7 +646,7 @@ export function HomeShell({ stories }: { stories: StoryListItem[] }) {
           </div>
         )}
 
-        <div className="mt-12 mb-6 px-2 text-center text-[11px] text-[var(--color-text-muted)] leading-relaxed space-y-2">
+        <div className="mt-12 mb-6 px-2 text-center text-xs text-[var(--color-text-soft)] leading-relaxed space-y-2">
           <p>
             <span title={dataMeta.updatedAt}>
               마지막 데이터 갱신:{" "}

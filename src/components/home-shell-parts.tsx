@@ -207,11 +207,11 @@ export function SeriesCard({
         )}
       </div>
       <div className="pt-2 pb-1 px-0.5">
-        <h3 className="text-[13px] font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em]">
+        <h2 className="text-sm font-bold leading-snug text-[var(--color-text)] line-clamp-2 min-h-[2.6em]">
           {data.label}
-        </h3>
+        </h2>
         <p
-          className="mt-0.5 text-[11px] tabular-nums text-[var(--color-text-muted)]"
+          className="mt-0.5 text-xs tabular-nums text-[var(--color-text-soft)]"
           aria-label={`${data.readCount} 읽음 / 총 ${data.totalCount} 편`}
         >
           {data.readCount > 0 ? (
@@ -221,7 +221,7 @@ export function SeriesCard({
           ) : (
             <span>0</span>
           )}
-          <span className="text-[var(--color-text-muted)]">
+          <span>
             {" "}
             / {data.totalCount}
           </span>

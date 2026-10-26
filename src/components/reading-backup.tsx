@@ -58,7 +58,7 @@ export function ReadingBackup({ onImported }: { onImported: () => Promise<void> 
   return <section aria-labelledby="reading-backup-title" className="mt-8 rounded-xl border border-[var(--color-border)] p-4">
     <h2 id="reading-backup-title" className="text-base font-bold">읽기 기록 옮기기</h2>
     <p className="mt-2 text-sm leading-relaxed text-[var(--color-text-soft)]">
-      기기나 사이트 주소가 바뀌어도 이어 보세요. 읽던 위치·책갈피·즐겨찾기를 파일로 보관하고 다른 브라우저에서 가져올 수 있어요. 파일은 서버로 전송되지 않습니다.
+      읽던 위치·책갈피·즐겨찾기를 파일로 옮깁니다. 다른 기기에서 파일을 가져오면 기록이 복원됩니다. 파일은 서버로 전송되지 않습니다.
     </p>
     <div className="mt-4 flex flex-wrap gap-2">
       <button type="button" disabled={busy} onClick={download}

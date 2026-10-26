@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { localListPath, readListReturn } from "@/lib/list-navigation";
 import { seriesLabel } from "@/lib/series";
 import { seriesPath } from "@/lib/series-pages";
+import { formatDate } from "@/lib/format";
+import { STORY_CATEGORY_LABEL } from "@/lib/types";
 import type { StoryDetail, StoryListItem } from "@/lib/types";
 import { useBodyScrollLock } from "@/lib/use-body-scroll-lock";
 import { useDocumentKeydown } from "@/lib/use-document-keydown";
@@ -236,6 +239,7 @@ export function StoryViewer({
     : "opacity-0 pointer-events-none -translate-y-1";
 
   const titleId = `story-viewer-title-${story.id}`;
+  const label = seriesLabel(story) ?? "기타";
 
   return (
     <div
@@ -285,6 +289,15 @@ export function StoryViewer({
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
+          <header className="px-5 pb-6 pt-20 text-white" onClick={(event) => event.stopPropagation()}>
+            <nav aria-label="현재 위치" className="flex flex-wrap items-center gap-x-2 text-xs text-white/75">
+              <Link href="/" prefetch={false} className="inline-flex min-h-11 items-center hover:underline">테런 스토리</Link>
+              <span aria-hidden="true">/</span>
+              <Link href={seriesPath(label)} prefetch={false} className="inline-flex min-h-11 items-center hover:underline">{label} 회차 모음</Link>
+            </nav>
+            <h1 className="mt-2 text-xl font-bold leading-snug">{story.subject}</h1>
+            <p className="mt-2 text-sm text-white/70">테일즈런너 {STORY_CATEGORY_LABEL[story.category] ?? "스토리"} · {formatDate(story.openDt)} 공개</p>
+          </header>
           <ViewerMedia story={story} restoreThrough={restoreThrough} />
           <ViewerEndCta
             storyId={story.id}

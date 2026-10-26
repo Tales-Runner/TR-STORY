@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { fetchStoryList } from "@/lib/api";
 import { HomeShell } from "@/components/home-shell";
 import { JsonLd } from "@/components/json-ld";
-import { SITE_DESCRIPTION, SITE_TITLE, siteUrl } from "@/lib/constants";
+import { OFFICIAL_OG_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, siteUrl } from "@/lib/constants";
 
 /**
  * 홈/소개 페이지의 og:image 는 테일즈런너 공식이 자체 사이트 메인 OG
@@ -15,13 +15,10 @@ import { SITE_DESCRIPTION, SITE_TITLE, siteUrl } from "@/lib/constants";
  * 회차 페이지는 자체 generateMetadata 에서 자기 회차 thumbnail 을 쓰므로
  * 영향 없다.
  */
-const OFFICIAL_OG_IMAGE =
-  "https://trimage.rhaon.co.kr/images/trweb-public/og/share_img_800.png";
-
 export const metadata: Metadata = {
   openGraph: {
     type: "website",
-    siteName: "TR Story",
+    siteName: SITE_NAME,
     locale: "ko_KR",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
@@ -31,7 +28,7 @@ export const metadata: Metadata = {
         url: OFFICIAL_OG_IMAGE,
         width: 800,
         height: 400,
-        alt: "테일즈런너 — TR Story",
+        alt: "테일즈런너 — 테런 스토리",
       },
     ],
   },
@@ -45,7 +42,7 @@ export default async function HomePage() {
   const stories = await fetchStoryList();
   return <>
     <JsonLd data={{ "@context": "https://schema.org", "@type": "WebSite",
-      name: "TR Story", alternateName: "테런 스토리", url: siteUrl(),
+      name: SITE_NAME, alternateName: ["TR Story", "테일즈런너 스토리"], url: siteUrl(),
       description: SITE_DESCRIPTION, inLanguage: "ko" }} />
     <HomeShell stories={stories} />
   </>;
