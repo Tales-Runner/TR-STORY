@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "npm run verify && npm run build",
-  "outputDirectory": "out",
   "trailingSlash": true
 }
